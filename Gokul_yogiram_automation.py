@@ -381,8 +381,7 @@ elif st.session_state.page == "pending_indents":
 
             # Aggregate and calculate Fulfillment %
             agg_df = df_second.groupby("ContractID").agg({"Ordered Items":"sum", "Invoice Items":"sum"}).reset_index()
-            agg_df["Fulfillment %"] = (agg_df["Invoice Items"] / agg_df["Ordered Items"] * 100).round(2)
-
+            agg_df["Fulfillment %"] = ((agg_df["Invoice Items"] / agg_df["Ordered Items"]) * 100).round(2).astype(str) + "%"
             # Grand Total row
             grand_total = pd.DataFrame({
                 "ContractID": ["Grand Total"],
