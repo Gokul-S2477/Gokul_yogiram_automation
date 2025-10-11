@@ -18,8 +18,7 @@ st.set_page_config(
 users = {
     "admin": "1234",
     "gokul": "abcd",
-    "vel":"1234",
-    "siva":"1234"
+    "vel":"1234"
 }
 
 # Path to the login log file
@@ -198,6 +197,10 @@ def go_sales(): st.session_state.page = "sales"
 def go_admin_log(): st.session_state.page = "admin_log"
 def go_apollo():   # <-- New function for Apollo Check
     st.session_state.page = "apollo"
+def go_pending_indents():
+    st.session_state.page = "pending_indents"
+
+
 
 
 
@@ -208,7 +211,7 @@ if st.session_state.page == "home":
     st.markdown("---")
     st.markdown("### Choose an automation to run 👇")
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 ,col6= st.columns(6)
 
     with col1:
         if st.button("📂 Claim Portal"):
@@ -225,6 +228,11 @@ if st.session_state.page == "home":
     with col5:
         if st.button("🛒 Apollo Check Portal"):
             go_apollo()   # <- New portal
+    with col6:
+        if st.button("📦 Pending Indents Check"):
+            go_pending_indents()
+
+
 
     st.markdown("---")
     st.markdown("""
@@ -285,9 +293,7 @@ elif st.session_state.page == "maxmin":
 # ------------------ SALES PORTAL ------------------
 elif st.session_state.page == "sales":
     st.title("💰 Sales Analysis Portal")
-
-    if st.button("🏠 Back to Home"):
-        go_home()
+    if st.button("🏠 Back to Home"): go_home()
 
     uploaded_file = st.file_uploader("Upload your Sales Excel/CSV file", type=["xlsx", "csv"])
     if uploaded_file:
@@ -299,39 +305,30 @@ elif st.session_state.page == "sales":
             df['Dated'] = pd.to_datetime(df['Dated'], errors='coerce', dayfirst=True)
             df['Weekday'] = df['Dated'].dt.day_name()
 
-            # ---------- Total Sales KPI ----------
             total_sales = df['Value'].sum()
             st.metric("💵 Total Sales", f"{total_sales:,.2f}")
 
-            st.markdown("---")
-            st.write("### 🗓 Total Sales by Day")
             sales_by_day = df.groupby('Weekday')['Value'].sum().reindex(
-                ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-            ).reset_index()
+                ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']).reset_index()
+            st.write("### 🗓 Total Sales by Day")
             st.dataframe(sales_by_day)
 
-            st.markdown("---")
-            st.write("### 🏢 Total Sales by Company")
             company_sales = df.groupby('Company')['Value'].sum().reset_index()
+            st.write("### 🏢 Total Sales by Company")
             st.dataframe(company_sales.sort_values('Value', ascending=False))
 
-            st.markdown("---")
-            st.write("### 🏪 Total Sales by Outlet")
             outlet_sales = df.groupby('Outlet')['Value'].sum().reset_index()
+            st.write("### 🏪 Total Sales by Outlet")
             st.dataframe(outlet_sales.sort_values('Value', ascending=False))
 
-            st.markdown("---")
-            st.write("### 📦 Total Sales by Product")
             product_sales = df.groupby('Product')['Value'].sum().reset_index()
+            st.write("### 📦 Total Sales by Product")
             st.dataframe(product_sales.sort_values('Value', ascending=False))
 
-            st.markdown("---")
-            st.write("### 👨‍💼 Total Sales by Salesman")
             salesman_sales = df.groupby('SalesMan')['Value'].sum().reset_index()
+            st.write("### 👨‍💼 Total Sales by Salesman")
             st.dataframe(salesman_sales.sort_values('Value', ascending=False))
 
-            # ---------- Download Option ----------
-            from io import BytesIO
             def to_excel(df_dict):
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -347,15 +344,71 @@ elif st.session_state.page == "sales":
                 "Sales_by_Salesman": salesman_sales
             })
 
-            st.download_button(
-                label="📥 Download Sales Summary",
-                data=excel_data,
-                file_name=f"Sales_Analysis_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            st.download_button("📥 Download Sales Summary", data=excel_data,
+                               file_name=f"Sales_Analysis_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
-# --------------------------- APOLLO CHECK PORTAL ---------------------------
+
+# ------------------ PENDING INDENTS MODULE ------------------
+elif st.session_state.page == "pending_indents":
+    st.title("📦 Pending Indents Module")
+    
+    if st.button("🏠 Back to Home"):
+        st.session_state.page = "home"
+
+    # Upload files
+    pending_file = st.file_uploader("Upload Pending Indents File", type=["xlsx","csv"], key="pending")
+    second_file = st.file_uploader("Upload Order Details File", type=["xlsx","csv"], key="second")
+
+    if pending_file and second_file:
+        df_pending = pd.read_excel(pending_file) if pending_file.name.endswith(".xlsx") else pd.read_csv(pending_file)
+        df_second = pd.read_excel(second_file) if second_file.name.endswith(".xlsx") else pd.read_csv(second_file)
+
+        st.write("### Uploaded Files Preview")
+        st.write("Pending Indents:")
+        st.dataframe(df_pending.head())
+        st.write("Order Details:")
+        st.dataframe(df_second.head())
+
+        if st.button("🚀 Map & Aggregate Data"):
+            # Map ContractID from Pending Indents
+            mapping = df_pending.set_index("Ind.No.")["ContractID"].to_dict()
+            df_second["ContractID"] = df_second["Ind No"].map(mapping).fillna("Manual")
+            df_second["ContractID"] = df_second["ContractID"].replace("", "(blank)")
+
+            # Aggregate and calculate Fulfillment %
+            agg_df = df_second.groupby("ContractID").agg({"Ordered Items":"sum", "Invoice Items":"sum"}).reset_index()
+            agg_df["Fulfillment %"] = (agg_df["Invoice Items"] / agg_df["Ordered Items"] * 100).round(2)
+
+            # Grand Total row
+            grand_total = pd.DataFrame({
+                "ContractID": ["Grand Total"],
+                "Ordered Items": [agg_df["Ordered Items"].sum()],
+                "Invoice Items": [agg_df["Invoice Items"].sum()],
+                "Fulfillment %": [(agg_df["Invoice Items"].sum() / agg_df["Ordered Items"].sum() * 100).round(2)]
+            })
+
+            final_df = pd.concat([agg_df, grand_total], ignore_index=True)
+            st.write("### 📊 Aggregated Results")
+            st.dataframe(final_df)
+
+            # Download Excel
+            from io import BytesIO
+            def to_excel(df):
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Summary')
+                return output.getvalue()
+
+            st.download_button("📥 Download Excel", data=to_excel(final_df), file_name="Pending_Indents_Summary.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            # Download CSV
+            st.download_button("📥 Download CSV", data=final_df.to_csv(index=False).encode('utf-8'), 
+                               file_name="Pending_Indents_Summary.csv", mime="text/csv")
+
+            
 # --------------------------- APOLLO CHECK ---------------------------
 elif st.session_state.page == "apollo":
     st.title("🚀 Apollo Check Module")
@@ -426,6 +479,7 @@ elif st.session_state.page == "apollo":
 
     if st.button("🏠 Back to Home"):
         st.session_state.page = "home"
+
 
 # ------------------ ADMIN LOGIN LOG PAGE ------------------
 elif st.session_state.page == "admin_log":
