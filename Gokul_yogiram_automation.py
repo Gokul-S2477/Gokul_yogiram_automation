@@ -417,7 +417,7 @@ elif st.session_state.page == "pending_indents":
                                file_name="Pending_Indents_Summary.csv", mime="text/csv")
 
 
-# ------------------ NA FINDER MODULE ------------------
+ # ------------------ NA FINDER MODULE ------------------
 elif st.session_state.page == "na_finder":
     st.title("🧮 NA Finder Module")
 
@@ -474,6 +474,10 @@ elif st.session_state.page == "na_finder":
 
             # Fill missing Qty as N/A
             merged_df['Qty'] = merged_df['Qty'].fillna('N/A')
+
+            # Reorder columns: Qty before Count of NA
+            merged_df = merged_df[['SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY', 'Qty',
+                                   'Count of NA', 'Sum of NA', 'Sum of NA VALUE']]
 
             st.write("### Final Merged Result with Qty from Item Master")
             st.dataframe(merged_df)
