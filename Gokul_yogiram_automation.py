@@ -18,9 +18,7 @@ st.set_page_config(
 users = {
     "admin": "1234",
     "gokul": "abcd",
-    "vel":"1234",
-    "siva":"1234",
-    "rajan":"1234"
+    "vel":"1234"
 }
 
 # Path to the login log file
@@ -201,6 +199,8 @@ def go_apollo():   # <-- New function for Apollo Check
     st.session_state.page = "apollo"
 def go_pending_indents():
     st.session_state.page = "pending_indents"
+def go_na_finder():
+    st.session_state.page = "na_finder"
 
 
 
@@ -213,7 +213,7 @@ if st.session_state.page == "home":
     st.markdown("---")
     st.markdown("### Choose an automation to run 👇")
 
-    col1, col2, col3, col4, col5 ,col6= st.columns(6)
+    col1, col2, col3, col4, col5 ,col6, col7 = st.columns(7)
 
     with col1:
         if st.button("📂 Claim Portal"):
@@ -233,6 +233,10 @@ if st.session_state.page == "home":
     with col6:
         if st.button("📦 Pending Indents Check"):
             go_pending_indents()
+    with col7:
+        if st.button("🧾 NA Finder"):
+            go_na_finder()
+
 
 
 
@@ -381,7 +385,10 @@ elif st.session_state.page == "pending_indents":
 
             # Aggregate and calculate Fulfillment %
             agg_df = df_second.groupby("ContractID").agg({"Ordered Items":"sum", "Invoice Items":"sum"}).reset_index()
+            # Fulfillment % as proper percentage format
             agg_df["Fulfillment %"] = ((agg_df["Invoice Items"] / agg_df["Ordered Items"]) * 100).round(2).astype(str) + "%"
+
+
             # Grand Total row
             grand_total = pd.DataFrame({
                 "ContractID": ["Grand Total"],
@@ -409,12 +416,92 @@ elif st.session_state.page == "pending_indents":
             st.download_button("📥 Download CSV", data=final_df.to_csv(index=False).encode('utf-8'), 
                                file_name="Pending_Indents_Summary.csv", mime="text/csv")
 
-            
+
+# ------------------ NA FINDER MODULE ------------------
+elif st.session_state.page == "na_finder":
+    st.title("🧮 NA Finder Module")
+
+    # Upload files
+    file1 = st.file_uploader("Upload first file (Indent Data)", type=["xlsx","csv"], key="file1")
+    file2 = st.file_uploader("Upload second file (Item Master)", type=["xlsx","csv"], key="file2")
+
+    if file1 and file2:
+        df1 = pd.read_excel(file1) if file1.name.endswith(".xlsx") else pd.read_csv(file1)
+        df2 = pd.read_excel(file2) if file2.name.endswith(".xlsx") else pd.read_csv(file2)
+
+        st.write("### File Previews")
+        st.write("Indent Data:")
+        st.dataframe(df1.head())
+        st.write("Item Master Data:")
+        st.dataframe(df2.head())
+
+        if st.button("🚀 Process & Merge Qty from Item Master"):
+
+            # ----------- Step 0: Ensure numeric columns -----------
+            numeric_cols = ['NA', 'NA VALUE']
+            for col in numeric_cols:
+                if col in df1.columns:
+                    df1[col] = pd.to_numeric(df1[col], errors='coerce').fillna(0)
+
+            # ----------- Step 1: Group first file -----------
+            grouped_df = df1.groupby(
+                ['SKU CODE', 'CODE', 'ITEM NAME', 'COMPANY'],
+                as_index=False
+            ).agg({
+                'NA': ['count', 'sum'],          # Count and Sum of NA
+                'NA VALUE': 'sum'                # Sum of NA VALUE
+            })
+
+            # Flatten MultiIndex columns
+            grouped_df.columns = [
+                'SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY', 
+                'Count of NA', 'Sum of NA', 'Sum of NA VALUE'
+            ]
+
+            st.write("### Grouped Result from Indent Data")
+            st.dataframe(grouped_df)
+
+            # ----------- Step 2: Map Qty from second file -----------
+            if "Gold Code" not in df2.columns or "Qty" not in df2.columns:
+                st.error("Second file must have 'Gold Code' and 'Qty' columns")
+                st.stop()
+
+            merged_df = grouped_df.merge(
+                df2[['Gold Code', 'Qty']],
+                on='Gold Code',
+                how='left'
+            )
+
+            # Fill missing Qty as N/A
+            merged_df['Qty'] = merged_df['Qty'].fillna('N/A')
+
+            st.write("### Final Merged Result with Qty from Item Master")
+            st.dataframe(merged_df)
+
+            # ----------- Step 3: Download buttons -----------
+            from io import BytesIO
+            def to_excel(df):
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Merged')
+                return output.getvalue()
+
+            excel_data = to_excel(merged_df)
+            st.download_button("📥 Download Final Excel", data=excel_data,
+                               file_name="NA_Finder_Final.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+            st.download_button("📥 Download Final CSV", data=merged_df.to_csv(index=False).encode('utf-8'),
+                               file_name="NA_Finder_Final.csv",
+                               mime="text/csv")
+
+
 # --------------------------- APOLLO CHECK ---------------------------
 elif st.session_state.page == "apollo":
     st.title("🚀 Apollo Check Module")
 
     # ------------------ FILE UPLOADER ------------------
+    
     if "apollo_file" not in st.session_state:
         st.session_state.apollo_file = None
 
