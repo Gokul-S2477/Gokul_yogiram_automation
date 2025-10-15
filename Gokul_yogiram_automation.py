@@ -19,6 +19,7 @@ users = {
     "admin": "1234",
     "gokul": "abcd",
     "vel":"1234",
+    "yogiram":"yogiram",
     "siva":"1234",
     "rajan":"1234"
 }
@@ -55,137 +56,129 @@ if not st.session_state.logged_in:
 
 
 # ------------------ CUSTOM CSS ------------------
+st.set_page_config(page_title="Yogiram Automation", layout="wide")
+
 st.markdown("""
 <style>
 /* ---------------- BODY & BACKGROUND ---------------- */
 body {
-    background: linear-gradient(135deg, #1e3c72, #2a5298);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #f0f0f0;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    font-family: 'Poppins', sans-serif;
+    color: #f1f1f1;
+    margin: 0;
+    padding: 0;
 }
-/* ---------------- MAIN CONTAINER ---------------- */
-.css-1d391kg {  /* streamlit main container */
-    background: linear-gradient(145deg, #2a2a72, #009ffd);
-    border-radius: 20px;
-    padding: 30px 40px;
-    margin: 20px auto;
-    box-shadow: 0px 10px 30px rgba(0,0,0,0.3);
+
+/* ---------------- STREAMLIT CONTAINER ---------------- */
+.main {
+    background: transparent;
 }
+
 /* ---------------- HEADINGS ---------------- */
 h1 {
-    font-size: 48px;
+    font-size: 52px;
     text-align: center;
-    color: #ffffff;
-    text-shadow: 1px 1px 5px #00000066;
-    margin-bottom: 15px;
+    color: #00ffd5;
+    text-shadow: 0px 0px 15px rgba(0,255,213,0.6);
+    margin-bottom: 10px;
 }
-h2 {
-    font-size: 28px;
+h2, h3 {
+    color: #b0eaff;
     text-align: center;
-    color: #e0e0e0;
-    font-weight: 400;
-    margin-bottom: 30px;
 }
-/* ---------------- BUTTONS ---------------- */
-.stButton>button {
-    background: linear-gradient(90deg, #00C9FF, #92FE9D);
-    color: #000000;
-    font-weight: bold;
+
+/* ---------------- BUTTONS (Futuristic Neon Glass Style) ---------------- */
+.stButton > button {
+    background: rgba(255, 255, 255, 0.08);
+    color: #00ffd5;
+    font-weight: 600;
     font-size: 18px;
-    padding: 15px 30px;
-    border-radius: 15px;
-    border: none;
-    transition: all 0.4s ease;
+    border-radius: 12px;
+    padding: 14px 28px;
+    border: 2px solid #00ffd5;
+    backdrop-filter: blur(10px);
     width: 100%;
-    box-shadow: 0px 6px 20px rgba(0,0,0,0.25);
-}
-.stButton>button:hover {
-    background: linear-gradient(90deg, #92FE9D, #00C9FF);
-    transform: translateY(-3px) scale(1.05);
-    color: #000000;
-    box-shadow: 0px 10px 25px rgba(0,0,0,0.35);
-}
-/* ---------------- INPUT BOXES ---------------- */
-.stTextInput>div>div>input {
-    background: #ffffff11;
-    color: #ffffff;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid #ffffff55;
     transition: all 0.3s ease;
+    box-shadow: 0 0 12px rgba(0, 255, 213, 0.3);
 }
-.stTextInput>div>div>input:focus {
-    border: 1.5px solid #00FFD4;
-    background: #ffffff22;
-    outline: none;
-    box-shadow: 0px 0px 10px rgba(0,255,212,0.5);
+.stButton > button:hover {
+    background: linear-gradient(90deg, #00ffd5, #00c2ff);
+    color: #000;
+    transform: translateY(-3px);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
 }
+
 /* ---------------- FILE UPLOADER ---------------- */
-.stFileUploader>div>div {
-    border: 2px dashed #ffffff66;
+.stFileUploader > div > div {
+    border: 2px dashed #00ffd5aa;
     border-radius: 15px;
-    padding: 20px;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #e0e0e0;
     transition: all 0.3s ease;
 }
-.stFileUploader>div>div:hover {
-    border-color: #00FFD4;
-    background: #ffffff11;
+.stFileUploader > div > div:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: #00ffd5;
 }
-/* ---------------- DATAFRAMES / TABLES ---------------- */
+
+/* ---------------- TEXT INPUT ---------------- */
+.stTextInput > div > div > input {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid #00ffd5;
+    color: #fff;
+    border-radius: 10px;
+    padding: 10px;
+    transition: all 0.3s ease;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #00c2ff;
+    box-shadow: 0 0 10px rgba(0,255,255,0.6);
+}
+
+/* ---------------- TABLES ---------------- */
 .stDataFrame div[data-testid="stDataFrameContainer"] {
     border-radius: 15px;
-    overflow: hidden;
-    box-shadow: 0px 8px 25px rgba(0,0,0,0.25);
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
 }
 .stDataFrame th {
-    background: linear-gradient(90deg, #00C9FF, #92FE9D);
+    background: linear-gradient(90deg, #00c2ff, #00ffd5);
     color: #000;
     font-weight: bold;
+    text-align: center;
 }
 .stDataFrame td {
-    background: #ffffff11;
+    background: rgba(255,255,255,0.04);
     color: #fff;
 }
+
 /* ---------------- FOOTER ---------------- */
 footer {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
     text-align: center;
-    font-size: 16px;
-    color: #f5f5f5;
-    padding: 10px 0;
-    background: linear-gradient(90deg, #2a2a72, #009ffd);
-    border-top-left-radius: 20px;
-    border-top-right-radius: 20px;
-    box-shadow: 0px -4px 15px rgba(0,0,0,0.3);
+    padding: 10px;
+    background: rgba(0,0,0,0.3);
+    color: #ccc;
+    font-size: 14px;
+    border-top: 1px solid rgba(255,255,255,0.2);
 }
-/* ---------------- CARDS / COLUMNS ---------------- */
-.stButton, .stTextInput, .stFileUploader, .stDataFrame {
-    margin-bottom: 20px;
-}
-/* ---------------- HOVER CARD EFFECT ---------------- */
-.card:hover {
-    transform: scale(1.03);
-    box-shadow: 0px 12px 35px rgba(0,0,0,0.35);
-}
+
 /* ---------------- SCROLLBAR ---------------- */
 ::-webkit-scrollbar {
     width: 10px;
 }
 ::-webkit-scrollbar-track {
-    background: #1e3c72;
-    border-radius: 10px;
+    background: #1b2735;
 }
 ::-webkit-scrollbar-thumb {
-    background: #92FE9D;
+    background: linear-gradient(180deg, #00ffd5, #00c2ff);
     border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #00C9FF;
+    background: linear-gradient(180deg, #00c2ff, #00ffd5);
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # ------------------ NAVIGATION ------------------
@@ -419,7 +412,8 @@ elif st.session_state.page == "pending_indents":
                                file_name="Pending_Indents_Summary.csv", mime="text/csv")
 
 
- # ------------------ NA FINDER MODULE ------------------
+
+# ------------------ NA FINDER MODULE ------------------
 elif st.session_state.page == "na_finder":
     st.title("🧮 NA Finder Module")
 
@@ -437,33 +431,26 @@ elif st.session_state.page == "na_finder":
         st.write("Item Master Data:")
         st.dataframe(df2.head())
 
+        # ---------- Process Button ----------
         if st.button("🚀 Process & Merge Qty from Item Master"):
-
-            # ----------- Step 0: Ensure numeric columns -----------
             numeric_cols = ['NA', 'NA VALUE']
             for col in numeric_cols:
                 if col in df1.columns:
                     df1[col] = pd.to_numeric(df1[col], errors='coerce').fillna(0)
 
-            # ----------- Step 1: Group first file -----------
             grouped_df = df1.groupby(
                 ['SKU CODE', 'CODE', 'ITEM NAME', 'COMPANY'],
                 as_index=False
             ).agg({
-                'NA': ['count', 'sum'],          # Count and Sum of NA
-                'NA VALUE': 'sum'                # Sum of NA VALUE
+                'NA': ['count', 'sum'],
+                'NA VALUE': 'sum'
             })
 
-            # Flatten MultiIndex columns
             grouped_df.columns = [
-                'SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY', 
+                'SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY',
                 'Count of NA', 'Sum of NA', 'Sum of NA VALUE'
             ]
 
-            st.write("### Grouped Result from Indent Data")
-            st.dataframe(grouped_df)
-
-            # ----------- Step 2: Map Qty from second file -----------
             if "Gold Code" not in df2.columns or "Qty" not in df2.columns:
                 st.error("Second file must have 'Gold Code' and 'Qty' columns")
                 st.stop()
@@ -474,17 +461,24 @@ elif st.session_state.page == "na_finder":
                 how='left'
             )
 
-            # Fill missing Qty as N/A
             merged_df['Qty'] = merged_df['Qty'].fillna('N/A')
 
-            # Reorder columns: Qty before Count of NA
             merged_df = merged_df[['SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY', 'Qty',
                                    'Count of NA', 'Sum of NA', 'Sum of NA VALUE']]
 
-            st.write("### Final Merged Result with Qty from Item Master")
+            # Store in session_state so it persists after text input
+            st.session_state["merged_df"] = merged_df
+
+            st.success("✅ Processing completed! Scroll down for more options.")
+
+        # ---------- If processed data exists ----------
+        if "merged_df" in st.session_state:
+            merged_df = st.session_state["merged_df"]
+
+            st.write("### ✅ Final Merged Result with Qty from Item Master")
             st.dataframe(merged_df)
 
-            # ----------- Step 3: Download buttons -----------
+            # ---------- Download buttons ----------
             from io import BytesIO
             def to_excel(df):
                 output = BytesIO()
@@ -501,13 +495,42 @@ elif st.session_state.page == "na_finder":
                                file_name="NA_Finder_Final.csv",
                                mime="text/csv")
 
+            # ---------- New Section: Percentage Calculation ----------
+            st.markdown("---")
+            st.subheader("📊 Company-wise NA Percentage Calculator")
+
+            user_input = st.text_input("Enter a number for percentage calculation (e.g., total value):")
+
+            if user_input:
+                try:
+                    base_value = float(user_input)
+
+                    # Group by company and calculate sum of Count of NA
+                    company_summary = merged_df.groupby('COMPANY', as_index=False)['Count of NA'].sum()
+
+                    # Calculate percentage
+                    company_summary['Percentage'] = ((company_summary['Count of NA'] / base_value) * 100).round(3)
+                    company_summary['Percentage'] = company_summary['Percentage'].astype(str) + " %"
+
+                    st.write("### 📈 Company-wise NA Summary")
+                    st.dataframe(company_summary)
+
+                    # Optional download
+                    excel_summary = to_excel(company_summary)
+                    st.download_button("📥 Download Company Summary Excel", data=excel_summary,
+                                       file_name="Company_NA_Summary.xlsx",
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                except ValueError:
+                    st.error("⚠️ Please enter a valid numeric value.")
+
 
 # --------------------------- APOLLO CHECK ---------------------------
 elif st.session_state.page == "apollo":
     st.title("🚀 Apollo Check Module")
 
     # ------------------ FILE UPLOADER ------------------
-    
+
     if "apollo_file" not in st.session_state:
         st.session_state.apollo_file = None
 
