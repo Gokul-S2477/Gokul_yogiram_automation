@@ -214,6 +214,8 @@ if st.session_state.page == "home":
         go_pending_indents()
     if st.button("🧾 NA Finder"):
         go_na_finder()
+    if st.button("📊 DB Age Analysis Portal"):
+        st.session_state.page = "db_age"
 
     st.markdown("---")
     st.markdown("""
@@ -504,6 +506,98 @@ elif st.session_state.page == "na_finder":
 
                 except ValueError:
                     st.error("⚠️ Please enter a valid numeric value.")
+
+# ------------------ DB AGE ANALYSIS MODULE ------------------
+elif st.session_state.page == "db_age":
+    st.title("📊 DB Age Analysis Module")
+    if st.button("🏠 Back to Home"):
+        st.session_state.page = "home"
+
+    # ------------------ FILE UPLOADER ------------------
+    uploaded_file = st.file_uploader("Upload your Excel/CSV file", type=["xlsx","csv"], key="db_age_file")
+    if uploaded_file:
+        df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith(".xlsx") else pd.read_csv(uploaded_file)
+        
+        # Strip spaces from column names
+        df.columns = df.columns.str.strip()
+        
+        # Find DB Date column
+        db_date_col = [col for col in df.columns if col.lower() == 'db date']
+        if not db_date_col:
+            st.error("⚠️ No 'DB Date' column found in the uploaded file.")
+            st.stop()
+        db_date_col = db_date_col[0]
+
+        st.write("### Uploaded Data Preview")
+        st.dataframe(df.head())
+
+        # ------------------ DATE SELECTION ------------------
+        st.subheader("Select Reference Date for Age Calculation")
+        date_option = st.radio("Choose date option:", ["Today", "Custom Date"])
+        if date_option == "Custom Date":
+            reference_date = st.date_input("Select Date")
+        else:
+            reference_date = pd.to_datetime("today")
+
+        # ------------------ AGE CALCULATION ------------------
+        df['DB Date'] = pd.to_datetime(df[db_date_col], errors='coerce', dayfirst=True)
+        df['AgeDays'] = (pd.to_datetime(reference_date) - df['DB Date']).dt.days
+
+        # ------------------ AGE BUCKETS ------------------
+        def age_bucket(days):
+            if pd.isna(days):
+                return "Unknown"
+            if 0 <= days <= 30:
+                return "0-30"
+            elif 31 <= days <= 60:
+                return "31-60"
+            elif 61 <= days <= 90:
+                return "61-90"
+            elif 91 <= days <= 120:
+                return "91-120"
+            elif 121 <= days <= 180:
+                return "121-180"
+            elif 181 <= days <= 270:
+                return "181-270"
+            elif 271 <= days <= 360:
+                return "271-360"
+            else:
+                return "Above 360"
+
+        df['Age Bucket'] = df['AgeDays'].apply(age_bucket)
+
+        st.write("### Data with Age and Buckets")
+        st.dataframe(df.head())
+
+        # ------------------ PIVOT TABLE ------------------
+        if 'Pending' not in df.columns:
+            st.error("⚠️ No 'Pending' column found in the uploaded file.")
+        else:
+            pivot_df = pd.pivot_table(
+                df,
+                index='Supplier',
+                columns='Age Bucket',
+                values='Pending',
+                aggfunc='sum',
+                fill_value=0
+            ).reset_index()
+
+            st.write("### 📊 Supplier-wise Pending Amount by Age Bucket")
+            st.dataframe(pivot_df)
+
+            # ------------------ DOWNLOAD ------------------
+            from io import BytesIO
+            def to_excel(df):
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='DB_Age_Analysis')
+                return output.getvalue()
+
+            excel_data = to_excel(pivot_df)
+            st.download_button("📥 Download DB Age Pivot Excel", data=excel_data,
+                               file_name=f"DB_Age_Analysis_{pd.to_datetime(reference_date).strftime('%Y-%m-%d')}.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 
 # --------------------------- APOLLO CHECK ---------------------------
