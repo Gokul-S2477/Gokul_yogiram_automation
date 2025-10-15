@@ -5,7 +5,6 @@ from datetime import datetime
 import os
 
 
-
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(
     page_title="Yogiram Automation - Gokul",
@@ -216,6 +215,7 @@ if st.session_state.page == "home":
         go_na_finder()
     if st.button("📊 DB Age Analysis Portal"):
         st.session_state.page = "db_age"
+
 
     st.markdown("---")
     st.markdown("""
@@ -507,6 +507,7 @@ elif st.session_state.page == "na_finder":
                 except ValueError:
                     st.error("⚠️ Please enter a valid numeric value.")
 
+
 # ------------------ DB AGE ANALYSIS MODULE ------------------
 elif st.session_state.page == "db_age":
     st.title("📊 DB Age Analysis Module")
@@ -597,7 +598,6 @@ elif st.session_state.page == "db_age":
             st.download_button("📥 Download DB Age Pivot Excel", data=excel_data,
                                file_name=f"DB_Age_Analysis_{pd.to_datetime(reference_date).strftime('%Y-%m-%d')}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 
 # --------------------------- APOLLO CHECK ---------------------------
@@ -692,3 +692,7 @@ elif st.session_state.page == "admin_log":
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     else:
         st.info("No login records yet.")
+
+
+
+# END OF FILE   
