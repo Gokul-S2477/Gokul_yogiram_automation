@@ -10,7 +10,8 @@ import os
 st.set_page_config(
     page_title="Yogiram Automation - Gokul",
     page_icon="⚙️",
-    layout="centered"
+    layout="wide",  # force wide layout
+    initial_sidebar_state="collapsed"
 )
 
 # ------------------ LOGIN ------------------
@@ -58,6 +59,7 @@ if not st.session_state.logged_in:
 # ------------------ CUSTOM CSS ------------------
 st.set_page_config(page_title="Yogiram Automation", layout="wide")
 
+# ------------------ CUSTOM CSS ------------------
 st.markdown("""
 <style>
 /* ---------------- BODY & BACKGROUND ---------------- */
@@ -69,78 +71,76 @@ body {
     padding: 0;
 }
 
-/* ---------------- STREAMLIT CONTAINER ---------------- */
-.main {
-    background: transparent;
+/* ---------------- STREAMLIT MAIN CONTAINER ---------------- */
+.css-1d391kg {
+    max-width: 1000px !important;
+    width: 100% !important;
+    margin: 20px auto !important;
+    padding: 30px 40px !important;
+    min-height: 900px;
+}
+
+/* ---------------- LOGIN & MODULES VERTICAL ALIGN ---------------- */
+.stTextInput > div, 
+.stButton > div, 
+.stFileUploader>div,
+.stDataFrame div[data-testid="stDataFrameContainer"] {
+    width: 100% !important;
+    max-width: 500px;
+    min-width: 500px;
+    margin: 10px 0 !important;  /* stack vertically */
+    display: block !important;
 }
 
 /* ---------------- HEADINGS ---------------- */
 h1 {
-    font-size: 52px;
+    font-size: 48px;
     text-align: center;
     color: #00ffd5;
-    text-shadow: 0px 0px 15px rgba(0,255,213,0.6);
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 h2, h3 {
     color: #b0eaff;
     text-align: center;
 }
 
-/* ---------------- BUTTONS (Futuristic Neon Glass Style) ---------------- */
+/* ---------------- BUTTONS ---------------- */
 .stButton > button {
-    background: rgba(255, 255, 255, 0.08);
+    width: 100% !important;
+    max-width: 500px;
+    min-width: 500px;
+    display: block !important;
+    margin: 10px 0 !important;
+    background: rgba(255,255,255,0.08);
     color: #00ffd5;
     font-weight: 600;
     font-size: 18px;
     border-radius: 12px;
-    padding: 14px 28px;
+    padding: 12px 0;
     border: 2px solid #00ffd5;
-    backdrop-filter: blur(10px);
-    width: 100%;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 12px rgba(0, 255, 213, 0.3);
+    box-shadow: 0 0 10px rgba(0,255,213,0.3);
 }
-.stButton > button:hover {
-    background: linear-gradient(90deg, #00ffd5, #00c2ff);
-    color: #000;
-    transform: translateY(-3px);
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+
+/* ---------------- TEXT INPUTS ---------------- */
+.stTextInput > div > div > input {
+    width: 100% !important;
+    max-width: 500px;
+    min-width: 500px;
+    display: block !important;
+    padding: 12px 15px;
+    font-size: 16px;
 }
 
 /* ---------------- FILE UPLOADER ---------------- */
-.stFileUploader > div > div {
+.stFileUploader>div>div {
+    padding: 18px;
+    background: rgba(255,255,255,0.05);
+    color: #e0e0e0;
     border: 2px dashed #00ffd5aa;
     border-radius: 15px;
-    padding: 18px;
-    background: rgba(255, 255, 255, 0.05);
-    color: #e0e0e0;
-    transition: all 0.3s ease;
-}
-.stFileUploader > div > div:hover {
-    background: rgba(255,255,255,0.08);
-    border-color: #00ffd5;
-}
-
-/* ---------------- TEXT INPUT ---------------- */
-.stTextInput > div > div > input {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid #00ffd5;
-    color: #fff;
-    border-radius: 10px;
-    padding: 10px;
-    transition: all 0.3s ease;
-}
-.stTextInput > div > div > input:focus {
-    border-color: #00c2ff;
-    box-shadow: 0 0 10px rgba(0,255,255,0.6);
 }
 
 /* ---------------- TABLES ---------------- */
-.stDataFrame div[data-testid="stDataFrameContainer"] {
-    border-radius: 15px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.3);
-}
 .stDataFrame th {
     background: linear-gradient(90deg, #00c2ff, #00ffd5);
     color: #000;
@@ -150,6 +150,10 @@ h2, h3 {
 .stDataFrame td {
     background: rgba(255,255,255,0.04);
     color: #fff;
+}
+.stDataFrame div[data-testid="stDataFrameContainer"] {
+    margin-bottom: 30px;
+    border-radius: 15px;
 }
 
 /* ---------------- FOOTER ---------------- */
@@ -161,23 +165,10 @@ footer {
     font-size: 14px;
     border-top: 1px solid rgba(255,255,255,0.2);
 }
-
-/* ---------------- SCROLLBAR ---------------- */
-::-webkit-scrollbar {
-    width: 10px;
-}
-::-webkit-scrollbar-track {
-    background: #1b2735;
-}
-::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #00ffd5, #00c2ff);
-    border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #00c2ff, #00ffd5);
-}
 </style>
+
 """, unsafe_allow_html=True)
+
 
 
 
@@ -208,32 +199,21 @@ if st.session_state.page == "home":
     st.markdown("---")
     st.markdown("### Choose an automation to run 👇")
 
-    col1, col2, col3, col4, col5 ,col6, col7 = st.columns(7)
-
-    with col1:
-        if st.button("📂 Claim Portal"):
-            go_claim()
-    with col2:
-        if st.button("📊 Max/Min Value Portal"):
-            go_maxmin()
-    with col3:
-        if st.button("💰 Sales Portal"):
-            go_sales()
-    with col4:
-        if username == "admin" and st.button("📝 Login Activity"):
-            go_admin_log()
-    with col5:
-        if st.button("🛒 Apollo Check Portal"):
-            go_apollo()   # <- New portal
-    with col6:
-        if st.button("📦 Pending Indents Check"):
-            go_pending_indents()
-    with col7:
-        if st.button("🧾 NA Finder"):
-            go_na_finder()
-
-
-
+    # Vertical buttons
+    if st.button("📂 Claim Portal"):
+        go_claim()
+    if st.button("📊 Max/Min Value Portal"):
+        go_maxmin()
+    if st.button("💰 Sales Portal"):
+        go_sales()
+    if username == "admin" and st.button("📝 Login Activity"):
+        go_admin_log()
+    if st.button("🛒 Apollo Check Portal"):
+        go_apollo()
+    if st.button("📦 Pending Indents Check"):
+        go_pending_indents()
+    if st.button("🧾 NA Finder"):
+        go_na_finder()
 
     st.markdown("---")
     st.markdown("""
@@ -241,6 +221,7 @@ if st.session_state.page == "home":
             Created by <b>Gokul</b> — Data Analyst, <b>Yogiram</b>
         </footer>
     """, unsafe_allow_html=True)
+
 
 # ------------------ CLAIM PORTAL ------------------
 elif st.session_state.page == "claim":
