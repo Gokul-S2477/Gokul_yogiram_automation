@@ -18,7 +18,9 @@ st.set_page_config(
 users = {
     "admin": "1234",
     "gokul": "abcd",
-    "vel":"1234"
+    "vel":"1234",
+    "siva":"1234",
+    "rajan":"1234"
 }
 
 # Path to the login log file
