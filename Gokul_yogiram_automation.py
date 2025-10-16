@@ -186,6 +186,8 @@ def go_pending_indents():
     st.session_state.page = "pending_indents"
 def go_na_finder():
     st.session_state.page = "na_finder"
+def go_info():
+    st.session_state.page = "info"
 
 
 
@@ -199,6 +201,9 @@ if st.session_state.page == "home":
     st.markdown("### Choose an automation to run 👇")
 
     # Vertical buttons
+    if st.button("ℹ️ Info Portal"):
+        go_info()
+
     if st.button("📂 Claim Portal"):
         go_claim()
     if st.button("📊 Max/Min Value Portal"):
@@ -217,6 +222,7 @@ if st.session_state.page == "home":
         st.session_state.page = "db_age"
 
 
+
     st.markdown("---")
     st.markdown("""
         <footer>
@@ -224,6 +230,47 @@ if st.session_state.page == "home":
         </footer>
     """, unsafe_allow_html=True)
 
+
+# ------------------ INFO MODULE ------------------
+elif st.session_state.page == "info":
+    st.title("ℹ️ Info & Instructions Portal")
+
+    if st.button("🏠 Back to Home"):
+        st.session_state.page = "home"
+
+    st.markdown("""
+    ### Claim Report - Invalid Free Qty Issued
+    - Upload the claim report file downloaded from your system.
+    - Ensure columns like 'Company Name', 'Claim Amount', 'Free Qty' exist.
+    - Click 🚀 Process Data to generate summary of invalid free quantities issued.
+
+    ### Pending Indent Module - NS %
+    - Upload Pending Indents file and Order Details file.
+    - Make sure columns like 'Ind.No.', 'Ordered Items', 'Invoice Items' exist.
+    - Click 🚀 Map & Aggregate Data to calculate NS % and fulfillment summary.
+
+    ### Statement with Indent No / Time Analysis Report
+    - Upload the relevant Excel/CSV report exported from the system.
+    - Columns like 'Indent No', 'Date', 'Time' should be present.
+    - Click 🚀 Process Data to analyze indent timelines and time-based trends.
+
+    ### NS Report - NA Report / Current Status
+    - Upload NA/NS related data file.
+    - Columns must include 'Gold Code', 'Qty', 'NA', 'NA VALUE'.
+    - Click 🚀 Process & Merge Qty to get current NA/NS status report by company or SKU.
+
+    ### DB AGE - Supplier Claim Pending Report
+    - Upload supplier DB/claim pending file.
+    - Columns must include 'Supplier', 'DB Date', 'Pending Amount', etc.
+    - Select today or custom date to calculate DB age and generate summary report.
+
+    ---
+    **Tips for All Modules:**
+    - Always verify column names before uploading.
+    - Export files in Excel/CSV format from your source system.
+    - Check info section for each module for more details.
+    - You can paste additional instructions or software download links here.
+    """)
 
 # ------------------ CLAIM PORTAL ------------------
 elif st.session_state.page == "claim":
