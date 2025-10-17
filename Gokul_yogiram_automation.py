@@ -225,6 +225,8 @@ if st.session_state.page == "home":
         st.session_state.page = "db_age"
     if st.button("💳 Payment Due Tracker"):
         go_payment_due()
+    if st.button("💹 Sales Contribution Analyzer"):
+        st.session_state.page = "sales_contribution"
 
 
 
@@ -789,6 +791,262 @@ elif st.session_state.page == "db_age":
             st.download_button("📥 Download DB Age Pivot Excel", data=excel_data,
                                file_name=f"DB_Age_Analysis_{pd.to_datetime(reference_date).strftime('%Y-%m-%d')}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+# ------------------ SALES CONTRIBUTION ANALYZER ------------------
+elif st.session_state.page == "sales_contribution":
+    import pandas as pd
+    import streamlit as st
+    from io import BytesIO
+
+    st.title("📈 Sales Contribution Analyzer")
+
+    if st.button("🏠 Back to Home"):
+        go_home()
+
+    st.markdown("Upload your sales/stock export (CSV or Excel). Expected columns include `AMOUNT` and `QTY.` (common variants handled).")
+
+    # ---------- Upload & cache ----------
+    uploaded = st.file_uploader("Upload sales file (CSV / XLSX)", type=["csv", "xlsx"], key="sales_contrib_upload")
+    if uploaded:
+        # store in session_state to avoid repeated reads
+        if "sales_raw_df" not in st.session_state or st.session_state.get("sales_file_name") != uploaded.name:
+            try:
+                if uploaded.name.lower().endswith(".csv"):
+                    df_raw = pd.read_csv(uploaded)
+                else:
+                    df_raw = pd.read_excel(uploaded)
+            except Exception as e:
+                st.error(f"Error reading file: {e}")
+                st.stop()
+
+            st.session_state.sales_raw_df = df_raw.copy()
+            st.session_state.sales_file_name = uploaded.name
+
+    # allow working with previously uploaded file if present
+    if "sales_raw_df" not in st.session_state:
+        st.info("No file uploaded yet.")
+        st.stop()
+
+    df_raw = st.session_state.sales_raw_df.copy()
+
+    # ---------- Normalize column names and detect key columns ----------
+    df_raw.columns = df_raw.columns.map(lambda c: str(c).strip())
+
+    # Helper to find column by possible names
+    def find_col(df, candidates):
+        cols = df.columns.tolist()
+        for c in candidates:
+            for col in cols:
+                if col.lower().strip() == c.lower().strip():
+                    return col
+        # fuzzy-like match: remove dots and spaces and compare
+        normalized = { "".join(ch.lower() for ch in col if ch.isalnum()): col for col in cols }
+        for c in candidates:
+            key = "".join(ch.lower() for ch in c if ch.isalnum())
+            if key in normalized:
+                return normalized[key]
+        return None
+
+    amount_col = find_col(df_raw, ["AMOUNT", "AMT", "Amount", "Amount "])
+    qty_col = find_col(df_raw, ["QTY.", "QTY", "QTY", "Quantity", "QTY", "Qty", "QTY"])
+    item_col = find_col(df_raw, ["ITEM NAME", "ITEM", "ITEMNAME", "BARCODE", "BARCODE"])
+    barcode_col = find_col(df_raw, ["BARCODE", "BAR CODE", "BARCODE "])
+    company_col = find_col(df_raw, ["COMPANY", "COMPANY "])
+
+    # Validate
+    if amount_col is None:
+        st.error("⚠️ Could not find an 'Amount' column. Expected column names like 'AMOUNT' or 'AMT'.")
+        st.stop()
+    if qty_col is None:
+        st.error("⚠️ Could not find a 'Qty' column. Expected 'QTY.' or 'QTY'.")
+        st.stop()
+    if item_col is None and barcode_col is None:
+        st.error("⚠️ Could not find an 'Item Name' or 'Barcode' column. At least one is required.")
+        st.stop()
+
+    # Normalize working df
+    df = df_raw.copy()
+    df.rename(columns={amount_col: "amount", qty_col: "qty"}, inplace=True)
+    if item_col:
+        df.rename(columns={item_col: "item_name"}, inplace=True)
+    if barcode_col:
+        df.rename(columns={barcode_col: "barcode"}, inplace=True)
+    if company_col:
+        df.rename(columns={company_col: "company"}, inplace=True)
+
+    # Ensure numeric types
+    df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0)
+    df["qty"] = pd.to_numeric(df["qty"], errors="coerce").fillna(0)
+
+    # ---------- Overall KPIs ----------
+    total_sales_all = df["amount"].sum()
+    total_qty_all = df["qty"].sum()
+    # define product identifier: barcode if exists else item_name
+    if "barcode" in df.columns:
+        df["_prod_id"] = df["barcode"].astype(str).str.strip()
+        prod_label = "barcode"
+    else:
+        df["_prod_id"] = df["item_name"].astype(str).str.strip()
+        prod_label = "item_name"
+
+    total_products_all = df["_prod_id"].nunique()
+
+    st.markdown("### 🔢 Overall KPIs")
+    k1, k2, k3 = st.columns(3)
+    k1.metric("💵 Total Sales (All)", f"₹{total_sales_all:,.2f}")
+    k2.metric("🔢 Total Products", f"{total_products_all:,}")
+    k3.metric("📦 Total Quantity", f"{total_qty_all:,.0f}")
+
+    # ---------- Group and Rank ----------
+    # Group by product id and show item_name & company where available
+    group_cols = ["_prod_id"]
+    agg = df.groupby(group_cols).agg({
+        "amount": "sum",
+        "qty": "sum"
+    }).reset_index()
+
+    # attach item_name and company (first occurrence)
+    if "item_name" in df.columns:
+        first_item = df.groupby("_prod_id")["item_name"].first().reset_index()
+        agg = agg.merge(first_item, on="_prod_id", how="left")
+    if "company" in df.columns:
+        first_comp = df.groupby("_prod_id")["company"].first().reset_index()
+        agg = agg.merge(first_comp, on="_prod_id", how="left")
+
+    agg = agg.sort_values("amount", ascending=False).reset_index(drop=True)
+    agg["rank"] = agg.index + 1
+    agg["cum_amount"] = agg["amount"].cumsum()
+    agg["cum_pct"] = (agg["cum_amount"] / agg["amount"].sum() * 100).round(4)
+
+    # friendly display order
+    display_cols = ["rank", "_prod_id"]
+    if "item_name" in agg.columns:
+        display_cols.append("item_name")
+    if "company" in agg.columns:
+        display_cols.append("company")
+    display_cols += ["amount", "qty", "cum_amount", "cum_pct"]
+
+    st.markdown("### 📋 Ranked Products (by Sales)")
+    st.dataframe(agg[display_cols].rename(columns={"_prod_id": prod_label}), use_container_width=True)
+
+    # ---------- Percentage selection ----------
+    st.markdown("---")
+    st.subheader("Select contribution filter")
+
+    col1, col2 = st.columns([2,3])
+    mode = col1.selectbox("Choose mode", ["Top % by Sales", "Bottom % by Sales"])
+    percent = col2.slider("Select percentage (X%)", min_value=1, max_value=100, value=80, step=1)
+
+    # function to pick minimal set of products reaching >= pct of sales
+    def pick_by_percent(df_ranked, pct, top=True):
+        df_local = df_ranked.copy().reset_index(drop=True)
+        total = df_local["amount"].sum()
+        if total == 0:
+            return df_local.iloc[0:0]  # empty
+        if top:
+            df_local = df_local.sort_values("amount", ascending=False).reset_index(drop=True)
+        else:
+            df_local = df_local.sort_values("amount", ascending=True).reset_index(drop=True)
+        df_local["cum"] = df_local["amount"].cumsum()
+        cutoff = total * (pct / 100.0)
+        # find first index where cum >= cutoff
+        idx = df_local[df_local["cum"] >= cutoff].index
+        if len(idx) == 0:
+            # not reached: return all
+            return df_local
+        last_idx = idx[0]
+        return df_local.loc[:last_idx].drop(columns=["cum"])
+
+    top_level_selected = pick_by_percent(agg, percent, top=(mode == "Top % by Sales"))
+    # compute KPIs for this selection
+    sel_sales = top_level_selected["amount"].sum()
+    sel_qty = top_level_selected["qty"].sum()
+    sel_count = len(top_level_selected)
+    sel_pct_of_total = (sel_sales / total_sales_all * 100) if total_sales_all else 0
+
+    # ---------- Nested percent option ----------
+    st.markdown("### Nested selection (optional)")
+    nested_enabled = st.checkbox("Apply another % inside the selected set (e.g., top 50% of the top 80%)", value=False)
+    nested_df = top_level_selected.copy()
+    nested_percent = None
+    if nested_enabled:
+        nested_percent = st.slider("Nested percentage (Y%)", min_value=1, max_value=100, value=50, step=1, key="nested_pct")
+        # For nested, we must pick within the selected set by amount proportion of that subset
+        if len(nested_df) > 0:
+            nested_df = pick_by_percent(nested_df, nested_percent, top=(mode == "Top % by Sales"))
+        nested_sel_sales = nested_df["amount"].sum()
+        nested_sel_qty = nested_df["qty"].sum()
+        nested_sel_count = len(nested_df)
+        nested_sel_pct_of_total = (nested_sel_sales / total_sales_all * 100) if total_sales_all else 0
+    else:
+        nested_sel_sales = nested_sel_qty = nested_sel_count = nested_sel_pct_of_total = None
+
+    # ---------- Show selection KPIs ----------
+    st.markdown("### ✅ Selected Set KPIs")
+    s1, s2, s3, s4 = st.columns(4)
+    s1.metric("Selected Sales (₹)", f"{sel_sales:,.2f}")
+    s2.metric("Selected Qty", f"{sel_qty:,.0f}")
+    s3.metric("No. Products Selected", f"{sel_count}")
+    s4.metric("% of Total Sales", f"{sel_pct_of_total:.2f}%")
+
+    if nested_enabled:
+        st.markdown("### ✅ Nested Selected KPIs")
+        n1, n2, n3, n4 = st.columns(4)
+        n1.metric("Nested Sales (₹)", f"{nested_sel_sales:,.2f}")
+        n2.metric("Nested Qty", f"{nested_sel_qty:,.0f}")
+        n3.metric("No. Products Nested", f"{nested_sel_count}")
+        n4.metric("% of Total Sales (Nested)", f"{nested_sel_pct_of_total:.2f}%")
+
+    # ---------- Display selected tables ----------
+    st.markdown(f"### 🔎 {mode} — {percent}% selection (Products: {sel_count})")
+    sel_display = top_level_selected[display_cols].rename(columns={"_prod_id": prod_label}).sort_values("amount", ascending=False)
+    st.dataframe(sel_display, use_container_width=True)
+
+    if nested_enabled:
+        st.markdown(f"### 🔎 Nested selection ({nested_percent}%) inside the above (Products: {len(nested_df)})")
+        nested_display = nested_df[display_cols].rename(columns={"_prod_id": prod_label}).sort_values("amount", ascending=False)
+        st.dataframe(nested_display, use_container_width=True)
+
+    # ---------- Download options ----------
+    def to_excel_bytes(df_to_save, sheet_name="Sheet1"):
+        out = BytesIO()
+        with pd.ExcelWriter(out, engine="openpyxl") as writer:
+            df_to_save.to_excel(writer, index=False, sheet_name=sheet_name)
+        return out.getvalue()
+
+    col_down_1, col_down_2 = st.columns(2)
+    with col_down_1:
+        st.download_button(
+            "📥 Download Ranked Full (Excel)",
+            data=to_excel_bytes(agg[display_cols].rename(columns={"_prod_id": prod_label})),
+            file_name=f"ranked_products_{pd.Timestamp.now().date()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    with col_down_2:
+        # create a combined excel if nested, else selected excel
+        if nested_enabled:
+            # create multi-sheet workbook
+            out = BytesIO()
+            with pd.ExcelWriter(out, engine="openpyxl") as writer:
+                sel_display.to_excel(writer, index=False, sheet_name="Selected_Summary")
+                nested_display.to_excel(writer, index=False, sheet_name=f"Nested_{nested_percent}pct")
+            data_bytes = out.getvalue()
+            st.download_button(
+                "📥 Download Selected + Nested (Excel)",
+                data=data_bytes,
+                file_name=f"selected_nested_{pd.Timestamp.now().date()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        else:
+            st.download_button(
+                "📥 Download Selected (Excel)",
+                data=to_excel_bytes(sel_display),
+                file_name=f"selected_products_{pd.Timestamp.now().date()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+    st.markdown("----")
+    st.info("Usage tips: Use Top% to find high-impact SKUs (Pareto). Use Bottom% to find long-tail / low-sales SKUs. Nested selection lets you drill into the top subset.")
 
 
 # --------------------------- APOLLO CHECK ---------------------------
