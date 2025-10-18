@@ -227,6 +227,9 @@ if st.session_state.page == "home":
         go_payment_due()
     if st.button("💹 Sales Contribution Analyzer"):
         st.session_state.page = "sales_contribution"
+    if st.button("📦 Courier No Of Bill Mapper"):
+        st.session_state.page = "courier_mapper"
+
 
 
 
@@ -1047,6 +1050,90 @@ elif st.session_state.page == "sales_contribution":
 
     st.markdown("----")
     st.info("Usage tips: Use Top% to find high-impact SKUs (Pareto). Use Bottom% to find long-tail / low-sales SKUs. Nested selection lets you drill into the top subset.")
+
+# ------------------ COURIER NO OF BILL MAPPER ------------------
+elif st.session_state.page == "courier_mapper":
+    st.title("📦 Courier 'No Of Bill' Mapper")
+    if st.button("🏠 Back to Home"): go_home()
+
+    file1 = st.file_uploader("Upload Transaction File (File 1)", type=["xlsx", "csv"])
+    file2 = st.file_uploader("Upload Courier Template File (File 2)", type=["xlsx", "csv"])
+
+    if file1 and file2:
+        # --- File 1 Processing ---
+        df1 = pd.read_excel(file1) if file1.name.endswith(".xlsx") else pd.read_csv(file1)
+        grouped = df1.groupby(["A/c No.", "Cust.Name"]).agg(Total=("Trn.No.", "count")).reset_index()
+
+        # --- File 2 Processing ---
+        # Preserve title rows (first 4 rows)
+        courier_titles = pd.read_excel(file2, header=None).iloc[:4, :]
+        # Read actual header from 5th row
+        data_df = pd.read_excel(file2, header=4)
+
+        # Clean column names
+        data_df.columns = data_df.columns.str.strip().str.replace("\n", " ").str.upper()
+
+        # Auto-detect customer name column
+        import difflib
+        cust_col_match = difflib.get_close_matches("CUSTOMER NAME", list(data_df.columns), n=1, cutoff=0.6)
+        if not cust_col_match:
+            st.error(f"⚠️ Could not find 'CUSTOMER NAME' column! Available columns: {list(data_df.columns)}")
+        else:
+            cust_col = cust_col_match[0]
+            data_df["NO OF BILL"] = data_df[cust_col].map(
+                dict(zip(grouped["Cust.Name"], grouped["Total"]))
+            ).fillna(0).astype(int)
+
+            st.write("### Preview Processed Data")
+            st.dataframe(data_df.head(10))
+
+            # --- Export to Excel with formatting ---
+            from io import BytesIO
+            from openpyxl import Workbook
+            from openpyxl.utils.dataframe import dataframe_to_rows
+            from openpyxl.styles import Font, Alignment
+            from openpyxl.worksheet.page import PageMargins
+
+            def to_excel_with_format(title_rows, data_df):
+                output = BytesIO()
+                wb = Workbook()
+                ws = wb.active
+
+                # Add title rows
+                for r in title_rows.itertuples(index=False):
+                    ws.append(r)
+
+                # Add data table
+                for r in dataframe_to_rows(data_df, index=False, header=True):
+                    ws.append(r)
+
+                # Bold headers
+                header_row = len(title_rows) + 1
+                for cell in ws[header_row]:
+                    cell.font = Font(bold=True)
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+
+                # Adjust column widths
+                for column_cells in ws.columns:
+                    length = max(len(str(cell.value) if cell.value else "") for cell in column_cells)
+                    ws.column_dimensions[column_cells[0].column_letter].width = min(length + 2, 40)
+
+                # Page setup for printing
+                ws.page_setup.fitToWidth = 1
+                ws.page_setup.fitToHeight = False
+                ws.page_margins = PageMargins(left=0.5, right=0.5, top=0.5, bottom=0.5)
+
+                wb.save(output)
+                return output.getvalue()
+
+            excel_data = to_excel_with_format(courier_titles, data_df)
+
+            st.download_button(
+                label="📥 Download Processed Courier File",
+                data=excel_data,
+                file_name=f"Courier_Mapped_{pd.Timestamp.today().strftime('%Y-%m-%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 
 # --------------------------- APOLLO CHECK ---------------------------
