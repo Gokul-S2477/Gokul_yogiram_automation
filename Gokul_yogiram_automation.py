@@ -21,8 +21,7 @@ users = {
     "vel":"1234",
     "yogiram":"yogiram",
     "siva":"1234",
-    "rajan":"1234",
-    "bhuvana":"1234"
+    "rajan":"1234"
 }
 
 # Path to the login log file
@@ -191,6 +190,8 @@ def go_info():
     st.session_state.page = "info"
 def go_payment_due():
     st.session_state.page = "payment_due"
+def go_courier_mapper():
+    st.session_state.page = "courier_mapper"
 
 
 
@@ -228,8 +229,9 @@ if st.session_state.page == "home":
         go_payment_due()
     if st.button("💹 Sales Contribution Analyzer"):
         st.session_state.page = "sales_contribution"
-    if st.button("📦 Courier No Of Bill Mapper"):
-        st.session_state.page = "courier_mapper"
+    if st.button("📦 Courier Bill Count Portal"):
+        go_courier_mapper()
+
 
 
 
@@ -1052,89 +1054,136 @@ elif st.session_state.page == "sales_contribution":
     st.markdown("----")
     st.info("Usage tips: Use Top% to find high-impact SKUs (Pareto). Use Bottom% to find long-tail / low-sales SKUs. Nested selection lets you drill into the top subset.")
 
-# ------------------ COURIER NO OF BILL MAPPER ------------------
+
+
+# ------------------ COURIER BILL COUNT MODULE ------------------
 elif st.session_state.page == "courier_mapper":
-    st.title("📦 Courier 'No Of Bill' Mapper")
-    if st.button("🏠 Back to Home"): go_home()
+    import pandas as pd
+    import streamlit as st
+    from io import BytesIO
+    from datetime import datetime
+    from openpyxl import Workbook
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font
 
-    file1 = st.file_uploader("Upload Transaction File (File 1)", type=["xlsx", "csv"])
-    file2 = st.file_uploader("Upload Courier Template File (File 2)", type=["xlsx", "csv"])
+    st.title("📦 Courier Bill Count Portal")
 
-    if file1 and file2:
-        # --- File 1 Processing ---
-        df1 = pd.read_excel(file1) if file1.name.endswith(".xlsx") else pd.read_csv(file1)
-        grouped = df1.groupby(["A/c No.", "Cust.Name"]).agg(Total=("Trn.No.", "count")).reset_index()
+    if st.button("🏠 Back to Home"):
+        st.session_state.page = "home"
 
-        # --- File 2 Processing ---
-        # Preserve title rows (first 4 rows)
-        courier_titles = pd.read_excel(file2, header=None).iloc[:4, :]
-        # Read actual header from 5th row
-        data_df = pd.read_excel(file2, header=4)
+    # ------------------ First Upload ------------------
+    st.subheader("Step 1: Upload Transaction File")
+    uploaded_file1 = st.file_uploader("Upload first file (Transaction Details)", type=["csv", "xlsx"], key="file1")
+    
+    if uploaded_file1:
+        if uploaded_file1.name.endswith(".csv"):
+            df1 = pd.read_csv(uploaded_file1)
+        else:
+            df1 = pd.read_excel(uploaded_file1)
+        
+        # Ensure proper column names
+        df1.columns = df1.columns.str.strip()
+
+        required_cols1 = ["A/c No.", "Cust.Name", "Trn.No."]
+        if not all(col in df1.columns for col in required_cols1):
+            st.error(f"⚠️ First file must contain columns: {required_cols1}")
+            st.stop()
+
+        # Group and count transactions
+        df_grouped = df1.groupby(["A/c No.", "Cust.Name"], as_index=False)["Trn.No."].count()
+        df_grouped.rename(columns={"Trn.No.": "No Of Bill"}, inplace=True)
+        st.success("✅ Transaction aggregation done!")
+        st.dataframe(df_grouped.head())
+
+    # ------------------ Second Upload ------------------
+    st.subheader("Step 2: Upload Courier File")
+    uploaded_file2 = st.file_uploader("Upload second file (Courier Details)", type=["csv", "xlsx"], key="file2")
+
+    if uploaded_file2 and uploaded_file1:
+        if uploaded_file2.name.endswith(".csv"):
+            df2 = pd.read_csv(uploaded_file2)
+        else:
+            df2 = pd.read_excel(uploaded_file2)
 
         # Clean column names
-        data_df.columns = data_df.columns.str.strip().str.replace("\n", " ").str.upper()
+        df2.columns = df2.columns.str.strip()
 
-        # Auto-detect customer name column
-        import difflib
-        cust_col_match = difflib.get_close_matches("CUSTOMER NAME", list(data_df.columns), n=1, cutoff=0.6)
-        if not cust_col_match:
-            st.error(f"⚠️ Could not find 'CUSTOMER NAME' column! Available columns: {list(data_df.columns)}")
-        else:
-            cust_col = cust_col_match[0]
-            data_df["NO OF BILL"] = data_df[cust_col].map(
-                dict(zip(grouped["Cust.Name"], grouped["Total"]))
-            ).fillna(0).astype(int)
+        # Handle the multi-line column name for No Of Bill
+        bill_col_candidates = [col for col in df2.columns if "No Of" in col and "Bill" in col]
+        if len(bill_col_candidates) == 0:
+            st.error("⚠️ Could not find 'No Of Bill' column in the second file!")
+            st.stop()
+        bill_col = bill_col_candidates[0]
 
-            st.write("### Preview Processed Data")
-            st.dataframe(data_df.head(10))
+        # Ensure unique index to avoid InvalidIndexError
+        df_grouped_unique = df_grouped.groupby("A/c No.", as_index=False)["No Of Bill"].sum()
 
-            # --- Export to Excel with formatting ---
-            from io import BytesIO
-            from openpyxl import Workbook
-            from openpyxl.utils.dataframe import dataframe_to_rows
-            from openpyxl.styles import Font, Alignment
-            from openpyxl.worksheet.page import PageMargins
+        # Map the No Of Bill to existing column
+        df2[bill_col] = df2["C.CODE"].map(df_grouped_unique.set_index("A/c No.")["No Of Bill"])
 
-            def to_excel_with_format(title_rows, data_df):
-                output = BytesIO()
-                wb = Workbook()
-                ws = wb.active
+        st.success("✅ 'No Of Bill' column updated!")
+        st.dataframe(df2.head())
 
-                # Add title rows
-                for r in title_rows.itertuples(index=False):
-                    ws.append(r)
+        # ------------------ Dropdown for Name ------------------
+        name_option = st.selectbox("Select Name for report", ["BHUVANA"])
+        current_date = datetime.now().strftime("%d.%m.%Y")
 
-                # Add data table
-                for r in dataframe_to_rows(data_df, index=False, header=True):
-                    ws.append(r)
+        # ------------------ Excel Creation ------------------
+        def create_excel_with_header(df, name, date_str):
+            wb = Workbook()
+            ws = wb.active
 
-                # Bold headers
-                header_row = len(title_rows) + 1
-                for cell in ws[header_row]:
-                    cell.font = Font(bold=True)
-                    cell.alignment = Alignment(horizontal="center", vertical="center")
+            # Title row (centered)
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(df.columns))
+            cell = ws.cell(row=1, column=1)
+            cell.value = "YOGIRAM PHARMA COURIERS DETAILS"
+            cell.alignment = Alignment(horizontal="center")
+            cell.font = Font(size=14, bold=True)
 
-                # Adjust column widths
-                for column_cells in ws.columns:
-                    length = max(len(str(cell.value) if cell.value else "") for cell in column_cells)
-                    ws.column_dimensions[column_cells[0].column_letter].width = min(length + 2, 40)
+            # Second row: Name on left, Date on right
+            ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=2)
+            ws.cell(row=2, column=1, value=f"NAME: {name}")
+            ws.cell(row=2, column=1).alignment = Alignment(horizontal="left")
+            ws.cell(row=2, column=len(df.columns), value=f"DATE {date_str}")
+            ws.cell(row=2, column=len(df.columns)).alignment = Alignment(horizontal="right")
 
-                # Page setup for printing
-                ws.page_setup.fitToWidth = 1
-                ws.page_setup.fitToHeight = False
-                ws.page_margins = PageMargins(left=0.5, right=0.5, top=0.5, bottom=0.5)
+            # Header
+            for col_num, column_title in enumerate(df.columns, 1):
+                ws.cell(row=3, column=col_num, value=column_title)
+                ws.cell(row=3, column=col_num).font = Font(bold=True)
+                ws.cell(row=3, column=col_num).alignment = Alignment(horizontal="center")
 
-                wb.save(output)
-                return output.getvalue()
+            # Data rows
+            for row_num, row in enumerate(df.values, 4):
+                for col_num, value in enumerate(row, 1):
+                    ws.cell(row=row_num, column=col_num, value=value)
 
-            excel_data = to_excel_with_format(courier_titles, data_df)
+            # Adjust column widths for A4 printing
+            for col_num, column_cells in enumerate(ws.columns, 1):
+                max_length = 0
+                for cell in column_cells:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                adjusted_width = (max_length + 2)
+                ws.column_dimensions[get_column_letter(col_num)].width = adjusted_width
 
-            st.download_button(
-                label="📥 Download Processed Courier File",
-                data=excel_data,
-                file_name=f"Courier_Mapped_{pd.Timestamp.today().strftime('%Y-%m-%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            return wb
+
+        # ------------------ Download Button ------------------
+        wb_final = create_excel_with_header(df2, name_option, current_date)
+        output = BytesIO()
+        wb_final.save(output)
+        output.seek(0)
+
+        st.download_button(
+            "📥 Download Final Report (Excel)",
+            data=output,
+            file_name=f"Courier_Report_{current_date}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+
+
 
 
 # --------------------------- APOLLO CHECK ---------------------------
