@@ -21,7 +21,8 @@ users = {
     "vel":"1234",
     "yogiram":"yogiram",
     "siva":"1234",
-    "rajan":"1234"
+    "rajan":"1234",
+    "bhuvana":"1234"
 }
 
 # Path to the login log file
