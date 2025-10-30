@@ -1127,7 +1127,7 @@ elif st.session_state.page == "courier_mapper":
         st.dataframe(df2.head())  # Preview updated file
 
         # ------------------ Step 3: Name Dropdown and Date ------------------
-        name_option = st.selectbox("Select Name for report", ["BHUVANA"])
+        name_option = st.selectbox("Select Name for report", ["BHUVANA", "KAVIYA", "KIRUBA", "SNEHA"])
         current_date = datetime.now().strftime("%d.%m.%Y")
 
         # ------------------ Step 4: Excel Creation ------------------
