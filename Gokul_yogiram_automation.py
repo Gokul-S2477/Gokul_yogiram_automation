@@ -22,7 +22,10 @@ users = {
     "yogiram":"yogiram",
     "siva":"1234",
     "rajan":"1234",
-    "bhuvana":"1234"
+    "bhuvana":"1234",
+    "kiruba":"1234",
+    "kaviya":"1234",
+    "sneha":"1234"
 }
 
 # Path to the login log file
