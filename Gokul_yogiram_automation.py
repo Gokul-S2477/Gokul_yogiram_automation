@@ -235,6 +235,9 @@ if st.session_state.page == "home":
         st.session_state.page = "sales_contribution"
     if st.button("📦 Courier Bill Count Portal"):
         go_courier_mapper()
+    if st.button("🧠 AI Data Analyst Portal"):
+        st.session_state.page = "ai_data_assistant"
+
 
 
 
@@ -289,6 +292,115 @@ elif st.session_state.page == "info":
     - Check info section for each module for more details.
     - You can paste additional instructions or software download links here.
     """)
+
+# ------------------ AI DATA ASSISTANT MODULE ------------------
+elif st.session_state.page == "ai_data_assistant":
+    import pandas as pd
+    import streamlit as st
+    from groq import Groq
+    from io import BytesIO
+
+    st.title("🧠 AI Excel Analyst (Groq)")
+
+    # ✅ Back button
+    if st.button("🏠 Back to Home"):
+        st.session_state.page = "home"
+
+    # ✅ Built-in Groq Key
+    client = Groq(api_key="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")
+
+    # ---------------- CSS ----------------
+    st.markdown("""
+    <style>
+    body { background: #0d0d16; }
+    .kpi-box {
+        background: rgba(255,255,255,0.08);
+        color: white;
+        padding: 24px;
+        margin-top: 12px;
+        border-radius: 16px;
+        text-align: center;
+        font-size: 30px;
+        font-weight: 800;
+        border: 1px solid rgba(255,255,255,0.22);
+        backdrop-filter: blur(8px);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ---------------- FILE UPLOAD ----------------
+    uploaded = st.file_uploader("📂 Upload Excel/CSV", type=["xlsx", "xls", "csv"])
+
+    df = None
+    if uploaded:
+        df = pd.read_csv(uploaded) if uploaded.name.endswith(".csv") else pd.read_excel(uploaded)
+        st.success("✅ File loaded")
+        st.write("### 📁 Preview")
+        st.dataframe(df.head())
+
+    # ✅ Utility to download Excel
+    def download_excel(dataframe, filename="result.xlsx"):
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            dataframe.to_excel(writer, index=False)
+        buffer.seek(0)
+        return buffer
+
+    # ---------------- ASK AI ----------------
+    if df is not None:
+        query = st.text_input("💬 Ask anything about your data:")
+
+        if query:
+            prompt = f"""
+            You are a pandas expert. A dataframe named df exists with columns:
+            {list(df.columns)}
+
+            User request: {query}
+
+            Goals:
+            - If numeric → show KPI
+            - If table → return DataFrame as `result_df`
+
+            Output rules:
+            - Return ONLY python code
+
+            Examples:
+            ✅ KPI:
+            result = df['Sales'].sum()
+            st.markdown(f"<div class='kpi-box'>{{result}}</div>", unsafe_allow_html=True)
+
+            ✅ Table:
+            result_df = df.head()
+            st.dataframe(result_df)
+            """
+
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0
+            )
+
+            ai_code = response.choices[0].message.content
+            ai_code = ai_code.replace("```python", "").replace("```", "").strip()
+            st.code(ai_code, language="python")
+
+            try:
+                env = {"df": df, "pd": pd, "st": st}
+                exec(ai_code, env)
+
+                # ✅ Download output if DataFrame exists
+                if "result_df" in env and isinstance(env["result_df"], pd.DataFrame):
+                    buffer = download_excel(env["result_df"])
+                    st.download_button(
+                        "⬇️ Download Excel Output",
+                        data=buffer,
+                        file_name="AI_Result.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
+            except Exception as e:
+                st.error("⚠️ AI code execution error")
+                st.exception(e)
 
 
 # ------------------ PAYMENT DUE TRACKER ------------------
