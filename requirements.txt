@@ -1,4 +1,14 @@
 streamlit
 pandas
+numpy
 openpyxl
+groq
+xlsxwriter
+python-dotenv
+pyarrow
+altair
 plotly
+requests
+tqdm
+scikit-learn
+streamlit-option-menu
