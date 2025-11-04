@@ -12,3 +12,4 @@ requests
 tqdm
 scikit-learn
 streamlit-option-menu
+matplotlib
