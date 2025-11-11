@@ -307,7 +307,7 @@ elif st.session_state.page == "ai_data_assistant":
         st.session_state.page = "home"
 
     # ✅ Built-in Groq Key
-    client = Groq(api_key="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")
+    client = Groq(api_key="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")
 
     # ---------------- CSS ----------------
     st.markdown("""
