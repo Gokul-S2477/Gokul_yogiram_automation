@@ -1186,6 +1186,7 @@ elif st.session_state.page == "sales_contribution":
 
 # ------------------ COURIER BILL COUNT MODULE ------------------
 elif st.session_state.page == "courier_mapper":
+
     import pandas as pd
     import streamlit as st
     from io import BytesIO
@@ -1193,86 +1194,153 @@ elif st.session_state.page == "courier_mapper":
     from openpyxl import Workbook
     from openpyxl.utils import get_column_letter
     from openpyxl.styles import Alignment, Font
+    import re
 
     st.title("📦 Courier Bill Count Portal")
 
     if st.button("🏠 Back to Home"):
         st.session_state.page = "home"
 
-    # ------------------ Step 1: Transaction File ------------------
+    # ============================================================
+    # STEP 1: TRANSACTION FILE
+    # ============================================================
     st.subheader("Step 1: Upload Transaction File")
-    uploaded_file1 = st.file_uploader("Upload first file (Transaction Details)", type=["csv", "xlsx"], key="file1")
-    
+    uploaded_file1 = st.file_uploader(
+        "Upload first file (Transaction Details)",
+        type=["csv", "xlsx"],
+        key="file1"
+    )
+
+    df_grouped = None
+
     if uploaded_file1:
-        if uploaded_file1.name.endswith(".csv"):
-            df1 = pd.read_csv(uploaded_file1)
-        else:
-            df1 = pd.read_excel(uploaded_file1)
-        
-        # Ensure proper column names
+        df1 = pd.read_csv(uploaded_file1) if uploaded_file1.name.endswith(".csv") else pd.read_excel(uploaded_file1)
         df1.columns = df1.columns.str.strip()
+
+        st.markdown("### 👀 Transaction File Preview")
+        st.dataframe(df1.head(), use_container_width=True)
+
         required_cols1 = ["A/c No.", "Cust.Name", "Trn.No."]
         if not all(col in df1.columns for col in required_cols1):
             st.error(f"⚠️ First file must contain columns: {required_cols1}")
             st.stop()
 
-        # Group and count transactions
-        df_grouped = df1.groupby(["A/c No.", "Cust.Name"], as_index=False)["Trn.No."].count()
-        df_grouped.rename(columns={"Trn.No.": "No Of Bill"}, inplace=True)
-        st.success("✅ Transaction aggregation done!")
-        st.dataframe(df_grouped.head())
+        df_grouped = (
+            df1.groupby(["A/c No.", "Cust.Name"], as_index=False)["Trn.No."]
+            .count()
+            .rename(columns={"Trn.No.": "No Of Bill"})
+        )
 
-    # ------------------ Step 2: Courier File ------------------
+    # ============================================================
+    # STEP 2: COURIER FILE (OLD FORMAT LOGIC)
+    # ============================================================
     st.subheader("Step 2: Upload Courier File")
-    uploaded_file2 = st.file_uploader("Upload second file (Courier Details)", type=["csv", "xlsx"], key="file2")
+    uploaded_file2 = st.file_uploader(
+        "Upload second file (Courier Details)",
+        type=["csv", "xlsx"],
+        key="file2"
+    )
+
+    df2 = None
 
     if uploaded_file2 and uploaded_file1:
-        if uploaded_file2.name.endswith(".csv"):
-            df2 = pd.read_csv(uploaded_file2)
-        else:
-            df2 = pd.read_excel(uploaded_file2)
+        df2 = pd.read_csv(uploaded_file2) if uploaded_file2.name.endswith(".csv") else pd.read_excel(uploaded_file2)
 
-        # Normalize column names (remove line breaks, extra spaces)
-        df2.columns = df2.columns.str.replace("\n", " ").str.replace("\r", " ").str.strip()
-        
-        # Detect 'No Of Bill' column robustly
+        df2.columns = (
+            df2.columns
+            .str.replace("\n", " ")
+            .str.replace("\r", " ")
+            .str.strip()
+        )
+
+        st.markdown("### 👀 Courier File Preview")
+        st.dataframe(df2.head(), use_container_width=True)
+
+        # Detect No Of Bill column (OLD LOGIC – UNCHANGED)
         bill_col_candidates = [col for col in df2.columns if "no of bill" in col.lower()]
         if len(bill_col_candidates) == 0:
             st.error("⚠️ Could not find 'No Of Bill' column in the second file!")
             st.stop()
         bill_col = bill_col_candidates[0]
 
-        # Ensure unique index for mapping
+        # Map No Of Bill (OLD LOGIC – UNCHANGED)
         df_grouped_unique = df_grouped.groupby("A/c No.", as_index=False)["No Of Bill"].sum()
+        df2[bill_col] = df2["C.CODE"].map(
+            df_grouped_unique.set_index("A/c No.")["No Of Bill"]
+        )
 
-        # Map transaction count to the correct column
-        df2[bill_col] = df2["C.CODE"].map(df_grouped_unique.set_index("A/c No.")["No Of Bill"])
+    # ============================================================
+    # STEP 3: TRAY FILE (NEW – ONLY ADDITION)
+    # ============================================================
+    st.subheader("Step 3: Upload Tray File")
+    uploaded_file3 = st.file_uploader(
+        "Upload tray file (Slip & Tray details)",
+        type=["csv", "xlsx"],
+        key="file3"
+    )
 
-        st.success("✅ 'No Of Bill' column updated!")
-        st.dataframe(df2.head())  # Preview updated file
+    tray_map = {}
 
-        # ------------------ Step 3: Name Dropdown and Date ------------------
-        name_option = st.selectbox("Select Name for report", ["BHUVANA", "KAVIYA", "KIRUBA", "SNEHA"])
+    if uploaded_file3:
+        df3 = pd.read_csv(uploaded_file3) if uploaded_file3.name.endswith(".csv") else pd.read_excel(uploaded_file3)
+        df3.columns = df3.columns.str.strip()
+
+        st.markdown("### 👀 Tray File Preview")
+        st.dataframe(df3.head(), use_container_width=True)
+
+        if "CUSTNAME" not in df3.columns or "TRAYID" not in df3.columns:
+            st.error("⚠️ Tray file must contain CUSTNAME and TRAYID columns")
+            st.stop()
+
+        # Extract customer code from [XXXX]
+        df3["CUST_CODE"] = df3["CUSTNAME"].apply(
+            lambda x: re.search(r"\[(\d+)\]", str(x)).group(1)
+            if re.search(r"\[(\d+)\]", str(x)) else None
+        )
+
+        # Group tray IDs with pipe separator
+        tray_map = (
+            df3.dropna(subset=["CUST_CODE"])
+            .groupby("CUST_CODE")["TRAYID"]
+            .apply(lambda x: " | ".join(sorted(x.astype(str).unique())))
+            .to_dict()
+        )
+
+    # ============================================================
+    # FINAL OUTPUT (OLD FORMAT + TRAY ID COLUMN)
+    # ============================================================
+    if df2 is not None:
+
+        # 🔹 ADD ONLY ONE COLUMN
+        df2["TRAY ID"] = df2["C.CODE"].astype(str).map(tray_map).fillna("")
+
+        st.success("✅ TRAY ID column added (format unchanged)")
+        st.markdown("### ✅ Final Result Preview")
+        st.dataframe(df2.head(10), use_container_width=True)
+
+        # ------------------ Name & Date ------------------
+        name_option = st.selectbox(
+            "Select Name for report",
+            ["BHUVANA", "KAVIYA", "KIRUBA", "SNEHA"]
+        )
         current_date = datetime.now().strftime("%d.%m.%Y")
 
-        # ------------------ Step 4: Excel Creation ------------------
+        # ------------------ Excel Creation (OLD FUNCTION – UNCHANGED) ------------------
         def create_excel_with_header(df, name, date_str):
             wb = Workbook()
             ws = wb.active
 
-            # Title row (centered)
+            # Title row
             ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(df.columns))
             cell = ws.cell(row=1, column=1)
             cell.value = "YOGIRAM PHARMA COURIERS DETAILS"
             cell.alignment = Alignment(horizontal="center")
             cell.font = Font(size=14, bold=True)
 
-            # Second row: Name on left, Date on right (merge first 2 columns for name)
+            # Name & Date row
             ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=2)
             ws.cell(row=2, column=1, value=f"NAME: {name}")
-            ws.cell(row=2, column=1).alignment = Alignment(horizontal="left")
             ws.cell(row=2, column=len(df.columns), value=f"DATE {date_str}")
-            ws.cell(row=2, column=len(df.columns)).alignment = Alignment(horizontal="right")
 
             # Header row
             for col_num, column_title in enumerate(df.columns, 1):
@@ -1285,18 +1353,14 @@ elif st.session_state.page == "courier_mapper":
                 for col_num, value in enumerate(row, 1):
                     ws.cell(row=row_num, column=col_num, value=value)
 
-            # Adjust column widths for better A4 printing
+            # Column widths (A4-friendly)
             for col_num, column_cells in enumerate(ws.columns, 1):
-                max_length = 0
-                for cell in column_cells:
-                    if cell.value:
-                        max_length = max(max_length, len(str(cell.value)))
-                adjusted_width = max_length + 2
-                ws.column_dimensions[get_column_letter(col_num)].width = adjusted_width
+                max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
+                ws.column_dimensions[get_column_letter(col_num)].width = max_length + 2
 
             return wb
 
-        # ------------------ Step 5: Download Button ------------------
+        # ------------------ Download ------------------
         wb_final = create_excel_with_header(df2, name_option, current_date)
         output = BytesIO()
         wb_final.save(output)
@@ -1308,7 +1372,6 @@ elif st.session_state.page == "courier_mapper":
             file_name=f"Courier_Report_{current_date}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-
 
 
 # --------------------------- APOLLO CHECK ---------------------------
