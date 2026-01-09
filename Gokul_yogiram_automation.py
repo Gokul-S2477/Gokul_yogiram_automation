@@ -293,53 +293,35 @@ elif st.session_state.page == "info":
     - You can paste additional instructions or software download links here.
     """)
 
-# ------------------ AI DATA ASSISTANT MODULE ------------------
+# ------------------ AI DATA ASSISTANT (ADVANCED) ------------------
 elif st.session_state.page == "ai_data_assistant":
+
     import pandas as pd
     import streamlit as st
     from groq import Groq
     from io import BytesIO
+    import plotly.express as px
 
-    st.title("🧠 AI Excel Analyst (Groq)")
+    st.title("🧠 AI Data Analyst (Smart + Interactive)")
 
-    # ✅ Back button
+    # ---------------- BACK ----------------
     if st.button("🏠 Back to Home"):
         st.session_state.page = "home"
 
-    # ✅ Built-in Groq Key
+    # ---------------- GROQ ----------------
     client = Groq(api_key="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")
 
-    # ---------------- CSS ----------------
-    st.markdown("""
-    <style>
-    body { background: #0d0d16; }
-    .kpi-box {
-        background: rgba(255,255,255,0.08);
-        color: white;
-        padding: 24px;
-        margin-top: 12px;
-        border-radius: 16px;
-        text-align: center;
-        font-size: 30px;
-        font-weight: 800;
-        border: 1px solid rgba(255,255,255,0.22);
-        backdrop-filter: blur(8px);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     # ---------------- FILE UPLOAD ----------------
-    uploaded = st.file_uploader("📂 Upload Excel/CSV", type=["xlsx", "xls", "csv"])
+    uploaded = st.file_uploader("📂 Upload Excel / CSV", type=["xlsx", "xls", "csv"])
 
     df = None
     if uploaded:
         df = pd.read_csv(uploaded) if uploaded.name.endswith(".csv") else pd.read_excel(uploaded)
         st.success("✅ File loaded")
-        st.write("### 📁 Preview")
-        st.dataframe(df.head())
+        st.dataframe(df.head(), use_container_width=True)
 
-    # ✅ Utility to download Excel
-    def download_excel(dataframe, filename="result.xlsx"):
+    # ---------------- EXCEL DOWNLOAD ----------------
+    def download_excel(dataframe):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
             dataframe.to_excel(writer, index=False)
@@ -348,31 +330,58 @@ elif st.session_state.page == "ai_data_assistant":
 
     # ---------------- ASK AI ----------------
     if df is not None:
-        query = st.text_input("💬 Ask anything about your data:")
+        query = st.text_input("💬 Ask about your data (KPIs, charts, insights, summaries)")
 
         if query:
             prompt = f"""
-            You are a pandas expert. A dataframe named df exists with columns:
-            {list(df.columns)}
+You are a SENIOR BUSINESS DATA ANALYST.
 
-            User request: {query}
+Dataframe name: df
+Columns: {list(df.columns)}
 
-            Goals:
-            - If numeric → show KPI
-            - If table → return DataFrame as `result_df`
+User question:
+{query}
 
-            Output rules:
-            - Return ONLY python code
+YOUR RESPONSIBILITIES:
+1. Understand business intent
+2. Generate:
+   - KPI(s)
+   - Interactive chart (Plotly)
+   - Short business summary
+3. Ask clarification ONLY if mandatory
 
-            Examples:
-            ✅ KPI:
-            result = df['Sales'].sum()
-            st.markdown(f"<div class='kpi-box'>{{result}}</div>", unsafe_allow_html=True)
+OUTPUT RULES (VERY STRICT):
+- Output ONLY python code
+- Use plotly.express for charts
+- Use streamlit functions
+- Do NOT explain code
+- No markdown text except st.write / st.markdown
 
-            ✅ Table:
-            result_df = df.head()
-            st.dataframe(result_df)
-            """
+KPI FORMAT:
+st.metric("Title", value)
+
+SUMMARY FORMAT:
+st.subheader("📌 Summary")
+st.write("Natural language business explanation")
+
+TABLE FORMAT:
+result_df = ...
+st.dataframe(result_df, use_container_width=True)
+
+CHART FORMAT:
+fig = px.bar / px.line / px.pie
+st.plotly_chart(fig, use_container_width=True)
+
+SUMMARY INTELLIGENCE RULES:
+- Calculate contribution %
+- Mention top contributor %
+- Mention concentration (top 5 / top 10 share)
+
+CLARIFICATION RULE:
+If chart type unclear:
+st.warning("Which chart do you want? (bar / line / pie)")
+STOP execution after warning
+"""
 
             response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
@@ -382,24 +391,28 @@ elif st.session_state.page == "ai_data_assistant":
 
             ai_code = response.choices[0].message.content
             ai_code = ai_code.replace("```python", "").replace("```", "").strip()
+
             st.code(ai_code, language="python")
 
             try:
-                env = {"df": df, "pd": pd, "st": st}
+                env = {
+                    "df": df,
+                    "pd": pd,
+                    "st": st,
+                    "px": px
+                }
                 exec(ai_code, env)
 
-                # ✅ Download output if DataFrame exists
                 if "result_df" in env and isinstance(env["result_df"], pd.DataFrame):
-                    buffer = download_excel(env["result_df"])
                     st.download_button(
-                        "⬇️ Download Excel Output",
-                        data=buffer,
+                        "⬇️ Download Result as Excel",
+                        data=download_excel(env["result_df"]),
                         file_name="AI_Result.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
 
             except Exception as e:
-                st.error("⚠️ AI code execution error")
+                st.error("⚠️ AI execution error")
                 st.exception(e)
 
 
