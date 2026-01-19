@@ -309,7 +309,7 @@ elif st.session_state.page == "ai_data_assistant":
         st.session_state.page = "home"
 
     # ---------------- GROQ ----------------
-    client = Groq(api_key="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")
+    client = Groq(api_key="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")
 
     # ---------------- FILE UPLOAD ----------------
     uploaded = st.file_uploader("📂 Upload Excel / CSV", type=["xlsx", "xls", "csv"])
