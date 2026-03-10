@@ -59,8 +59,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 
-# ------------------ CUSTOM CSS ------------------
-st.set_page_config(page_title="Yogiram Automation", layout="wide")
+
 
 # ------------------ CUSTOM CSS ------------------
 st.markdown("""
@@ -196,7 +195,8 @@ def go_payment_due():
     st.session_state.page = "payment_due"
 def go_courier_mapper():
     st.session_state.page = "courier_mapper"
-
+def go_pending_lock():
+    st.session_state.page = "pending_lock_analyzer"
 
 
 
@@ -239,7 +239,7 @@ if st.session_state.page == "home":
     if st.button("🧠 AI Data Analyst Portal"):
         st.session_state.page = "ai_data_assistant"
     if st.button("📦 Pending Order Lock Analyzer"):
-        st.session_state.page = "pending_lock_analyzer"
+        go_pending_lock()
 
 
 
@@ -1384,7 +1384,6 @@ elif st.session_state.page == "pending_lock_analyzer":
     if st.button("🏠 Back to Home"):
         go_home()
 
-    # ---------------- FILE UPLOAD ----------------
     st.subheader("Upload Files")
 
     pending_file = st.file_uploader(
@@ -1405,30 +1404,29 @@ elif st.session_state.page == "pending_lock_analyzer":
         key="salesman_file"
     )
 
-    # ---------------- PROCESS ----------------
     if pending_file and lock_file and salesman_file:
 
-        # READ FILES
+        # ---------- READ FILES ----------
         pending_df = pd.read_excel(pending_file) if pending_file.name.endswith(".xlsx") else pd.read_csv(pending_file)
         lock_df = pd.read_excel(lock_file) if lock_file.name.endswith(".xlsx") else pd.read_csv(lock_file)
         sales_df = pd.read_excel(salesman_file) if salesman_file.name.endswith(".xlsx") else pd.read_csv(salesman_file)
 
-        # CLEAN COLUMN NAMES
+        # Clean column names
         pending_df.columns = pending_df.columns.str.strip()
         lock_df.columns = lock_df.columns.str.strip()
         sales_df.columns = sales_df.columns.str.strip()
 
-        st.subheader("Preview Pending Orders")
+        st.write("### Pending Orders Preview")
         st.dataframe(pending_df.head(), use_container_width=True)
 
-        # ---------------- REMOVE ORD NO = 0 ----------------
+        # ---------- REMOVE ORD NO = 0 ----------
         if "Ord No." not in pending_df.columns:
             st.error("⚠️ 'Ord No.' column not found in Pending Orders file")
             st.stop()
 
-        pending_df = pending_df[pending_df["Ord No."] != 0]
+        pending_df = pending_df[pending_df["Ord No."].astype(str) != "0"]
 
-        # ---------------- VLOOKUP 1 (Reason) ----------------
+        # ---------- LOOKUP REASON ----------
         if "Code" not in pending_df.columns or "Code" not in lock_df.columns:
             st.error("⚠️ 'Code' column missing in Pending Orders or Customer Lock file")
             st.stop()
@@ -1441,7 +1439,7 @@ elif st.session_state.page == "pending_lock_analyzer":
             lock_df.set_index("Code")["Reason"]
         )
 
-        # ---------------- VLOOKUP 2 (Salesman) ----------------
+        # ---------- LOOKUP SALESMAN ----------
         if "CODE" not in sales_df.columns or "SALES MAN" not in sales_df.columns:
             st.error("⚠️ Salesman file must contain 'CODE' and 'SALES MAN'")
             st.stop()
@@ -1450,17 +1448,26 @@ elif st.session_state.page == "pending_lock_analyzer":
             sales_df.set_index("CODE")["SALES MAN"]
         )
 
-        # ---------------- FINAL OUTPUT ----------------
-        st.success("✅ Processing Completed")
+        # ---------- SUMMARY TABLES ----------
+        st.subheader("Reason Summary")
+        reason_summary = pending_df["Reason"].value_counts().reset_index()
+        reason_summary.columns = ["Reason", "Orders"]
+        st.dataframe(reason_summary)
 
+        st.subheader("Salesman Summary")
+        sales_summary = pending_df["Salesman"].value_counts().reset_index()
+        sales_summary.columns = ["Salesman", "Orders"]
+        st.dataframe(sales_summary)
+
+        # ---------- FINAL PREVIEW ----------
         st.subheader("Final Result Preview")
         st.dataframe(pending_df.head(20), use_container_width=True)
 
-        # ---------------- DOWNLOAD ----------------
+        # ---------- DOWNLOAD ----------
         def to_excel(df):
             output = BytesIO()
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                df.to_excel(writer, index=False, sheet_name="Result")
+                df.to_excel(writer, index=False)
             return output.getvalue()
 
         excel_data = to_excel(pending_df)
