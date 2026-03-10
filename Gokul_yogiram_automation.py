@@ -1406,96 +1406,77 @@ elif st.session_state.page == "pending_lock_analyzer":
 
     if pending_file and lock_file and salesman_file:
 
-        # ---------------- READ FILES ----------------
+        # ---------- READ FILES ----------
         pending_df = pd.read_excel(pending_file) if pending_file.name.endswith(".xlsx") else pd.read_csv(pending_file)
         lock_df = pd.read_excel(lock_file) if lock_file.name.endswith(".xlsx") else pd.read_csv(lock_file)
         sales_df = pd.read_excel(salesman_file) if salesman_file.name.endswith(".xlsx") else pd.read_csv(salesman_file)
 
-        # ---------------- CLEAN COLUMN NAMES ----------------
+        # ---------- CLEAN COLUMN NAMES ----------
         pending_df.columns = pending_df.columns.str.strip()
         lock_df.columns = lock_df.columns.str.strip()
         sales_df.columns = sales_df.columns.str.strip()
 
-        st.write("### Pending Orders Preview")
-        st.dataframe(pending_df.head(), use_container_width=True)
-
-        # ---------------- CHECK REQUIRED COLUMNS ----------------
-        if "Ord No." not in pending_df.columns:
-            st.error("⚠️ 'Ord No.' column not found in Pending Orders file")
-            st.stop()
-
-        if "Code" not in pending_df.columns:
-            st.error("⚠️ 'Code' column missing in Pending Orders file")
+        # ---------- VALIDATE REQUIRED COLUMNS ----------
+        if "Ord No." not in pending_df.columns or "Code" not in pending_df.columns:
+            st.error("Pending file must contain 'Ord No.' and 'Code'")
             st.stop()
 
         if "Code" not in lock_df.columns or "Reason" not in lock_df.columns:
-            st.error("⚠️ Customer Lock file must contain 'Code' and 'Reason'")
+            st.error("Customer Lock file must contain 'Code' and 'Reason'")
             st.stop()
 
         if "CODE" not in sales_df.columns or "SALES MAN" not in sales_df.columns:
-            st.error("⚠️ Salesman file must contain 'CODE' and 'SALES MAN'")
+            st.error("Salesman file must contain 'CODE' and 'SALES MAN'")
             st.stop()
 
-        # ---------------- REMOVE ORD NO = 0 ----------------
-        pending_df = pending_df[pending_df["Ord No."].astype(str) != "0"]
-
-        # ---------------- FIX DUPLICATE CODES ----------------
+        # ---------- REMOVE DUPLICATES ----------
         lock_df = lock_df.drop_duplicates(subset="Code", keep="first")
         sales_df = sales_df.drop_duplicates(subset="CODE", keep="first")
 
-        # ---------------- LOOKUP REASON ----------------
+        # ---------- LOOKUPS ----------
         pending_df["Reason"] = pending_df["Code"].map(
             lock_df.set_index("Code")["Reason"]
         )
 
-        # ---------------- LOOKUP SALESMAN ----------------
         pending_df["Salesman"] = pending_df["Code"].map(
             sales_df.set_index("CODE")["SALES MAN"]
         )
 
-        # ---------------- SUMMARY TABLES ----------------
-        st.subheader("📊 Lock Reason Summary")
+        # ---------- CLEAN ORD NO ----------
+        pending_df["Ord No."] = pending_df["Ord No."].astype(str).str.strip()
 
-        reason_summary = (
-            pending_df["Reason"]
-            .fillna("Unknown")
-            .value_counts()
-            .reset_index()
-        )
-        reason_summary.columns = ["Reason", "Orders"]
+        # ---------- SPLIT DATA ----------
+        orders_with_zero = pending_df[pending_df["Ord No."] == "0"]
+        orders_without_zero = pending_df[pending_df["Ord No."] != "0"]
 
-        st.dataframe(reason_summary, use_container_width=True)
+        # ---------- PREVIEW ----------
+        st.subheader("📄 Orders WITH Ord No = 0")
+        st.dataframe(orders_with_zero, use_container_width=True)
 
-        st.subheader("👨‍💼 Salesman Summary")
+        st.subheader("📄 Orders WITHOUT Ord No = 0")
+        st.dataframe(orders_without_zero, use_container_width=True)
 
-        sales_summary = (
-            pending_df["Salesman"]
-            .fillna("Unknown")
-            .value_counts()
-            .reset_index()
-        )
-        sales_summary.columns = ["Salesman", "Orders"]
-
-        st.dataframe(sales_summary, use_container_width=True)
-
-        # ---------------- FINAL PREVIEW ----------------
-        st.subheader("📋 Final Processed Data")
-
-        st.dataframe(pending_df.head(20), use_container_width=True)
-
-        # ---------------- DOWNLOAD EXCEL ----------------
+        # ---------- EXCEL FUNCTION ----------
         def to_excel(df):
             output = BytesIO()
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                df.to_excel(writer, index=False, sheet_name="Pending Orders")
+                df.to_excel(writer, index=False)
             return output.getvalue()
 
-        excel_data = to_excel(pending_df)
+        # ---------- DOWNLOAD BUTTONS ----------
+        st.markdown("---")
 
         st.download_button(
-            "📥 Download Final Excel",
-            data=excel_data,
-            file_name=f"Pending_Order_Lock_Report_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            "📥 Download Orders WITH Ord No = 0",
+            data=to_excel(orders_with_zero),
+            file_name=f"Orders_With_Zero_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        st.download_button(
+            "📥 Download Orders WITHOUT Ord No = 0",
+            data=to_excel(orders_without_zero),
+            file_name=f"Orders_Without_Zero_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 # --------------------------- APOLLO CHECK ---------------------------
