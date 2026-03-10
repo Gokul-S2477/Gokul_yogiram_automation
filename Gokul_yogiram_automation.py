@@ -1429,32 +1429,35 @@ elif st.session_state.page == "pending_lock_analyzer":
             st.error("Salesman file must contain 'CODE' and 'SALES MAN'")
             st.stop()
 
-        # ---------- REMOVE DUPLICATES ----------
+        # ---------- FIX ORD NO FORMAT ----------
+        pending_df["Ord No."] = pd.to_numeric(pending_df["Ord No."], errors="coerce")
+
+        # ---------- REMOVE DUPLICATE CODES ----------
         lock_df = lock_df.drop_duplicates(subset="Code", keep="first")
         sales_df = sales_df.drop_duplicates(subset="CODE", keep="first")
 
-        # ---------- LOOKUPS ----------
+        # ---------- LOOKUP REASON ----------
         pending_df["Reason"] = pending_df["Code"].map(
             lock_df.set_index("Code")["Reason"]
         )
 
+        # ---------- LOOKUP SALESMAN ----------
         pending_df["Salesman"] = pending_df["Code"].map(
             sales_df.set_index("CODE")["SALES MAN"]
         )
 
-        # ---------- CLEAN ORD NO ----------
-        pending_df["Ord No."] = pending_df["Ord No."].astype(str).str.strip()
+        # ---------- REPORT 1 (ALL DATA) ----------
+        report_all = pending_df.copy()
 
-        # ---------- SPLIT DATA ----------
-        orders_with_zero = pending_df[pending_df["Ord No."] == "0"]
-        orders_without_zero = pending_df[pending_df["Ord No."] != "0"]
+        # ---------- REPORT 2 (REMOVE 0 ORDERS) ----------
+        report_without_zero = pending_df[pending_df["Ord No."] != 0].copy()
 
         # ---------- PREVIEW ----------
-        st.subheader("📄 Orders WITH Ord No = 0")
-        st.dataframe(orders_with_zero, use_container_width=True)
+        st.subheader("📄 Report 1 — All Orders (Includes 0)")
+        st.dataframe(report_all, use_container_width=True)
 
-        st.subheader("📄 Orders WITHOUT Ord No = 0")
-        st.dataframe(orders_without_zero, use_container_width=True)
+        st.subheader("📄 Report 2 — Orders Without 0")
+        st.dataframe(report_without_zero, use_container_width=True)
 
         # ---------- EXCEL FUNCTION ----------
         def to_excel(df):
@@ -1467,18 +1470,19 @@ elif st.session_state.page == "pending_lock_analyzer":
         st.markdown("---")
 
         st.download_button(
-            "📥 Download Orders WITH Ord No = 0",
-            data=to_excel(orders_with_zero),
-            file_name=f"Orders_With_Zero_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            "📥 Download Report 1 (All Orders)",
+            data=to_excel(report_all),
+            file_name=f"Pending_Orders_All_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
         st.download_button(
-            "📥 Download Orders WITHOUT Ord No = 0",
-            data=to_excel(orders_without_zero),
-            file_name=f"Orders_Without_Zero_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            "📥 Download Report 2 (Without 0 Orders)",
+            data=to_excel(report_without_zero),
+            file_name=f"Pending_Orders_No_Zero_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+        
 # --------------------------- APOLLO CHECK ---------------------------
 elif st.session_state.page == "apollo":
     st.title("🚀 Apollo Check Module")
