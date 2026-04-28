@@ -13,6 +13,246 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# ------------------ GLOBAL PREMIUM STYLING ------------------
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+
+/* ============ ROOT VARIABLES ============ */
+:root {
+    --primary: #00f2ff;
+    --secondary: #39ff14;
+    --accent:   #ff00ea;
+    --gold:     #ffd700;
+    --bg:       #05070c;
+    --surface:  rgba(255,255,255,0.04);
+    --border:   rgba(255,255,255,0.09);
+    --text:     #e2e8f0;
+    --muted:    rgba(226,232,240,0.5);
+}
+
+/* ============ APP BACKGROUND ============ */
+.stApp {
+    background: var(--bg) !important;
+    background-image:
+        radial-gradient(ellipse at 0% 0%,   rgba(0,242,255,0.12) 0, transparent 55%),
+        radial-gradient(ellipse at 100% 0%,  rgba(57,255,20,0.10) 0, transparent 55%),
+        radial-gradient(ellipse at 50% 100%, rgba(255,0,234,0.08) 0, transparent 55%) !important;
+    background-attachment: fixed !important;
+}
+
+[data-testid="stAppViewContainer"] { background: transparent; }
+[data-testid="stHeader"] { background: transparent; }
+
+/* ============ TYPOGRAPHY ============ */
+body, p, span, div, label {
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    color: var(--text) !important;
+}
+h1, h2, h3, h4 {
+    font-family: 'Outfit', sans-serif !important;
+    color: #fff !important;
+}
+
+/* ============ HIDE CHROME ============ */
+#MainMenu { visibility: hidden; }
+footer    { visibility: hidden; }
+[data-testid="stToolbar"] { display: none; }
+
+/* ============ SCROLLBAR ============ */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #0a0c10; }
+::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 99px; }
+
+/* ============ LOGIN PAGE ============ */
+/* Target the middle column on the login page */
+[data-testid="stVerticalBlock"]:has(> [data-testid="stImage"]) {
+    background: rgba(255,255,255,0.04) !important;
+    border: 1px solid rgba(0,242,255,0.2) !important;
+    border-radius: 28px !important;
+    padding: 2.5rem !important;
+    box-shadow: 0 0 60px rgba(0,242,255,0.06), 0 25px 50px rgba(0,0,0,0.5) !important;
+    backdrop-filter: blur(20px) !important;
+}
+
+/* ============ INPUT FIELDS ============ */
+.stTextInput > div > div > input {
+    background: rgba(255,255,255,0.04) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px !important;
+    color: #fff !important;
+    font-size: 1rem !important;
+    transition: border-color 0.25s, box-shadow 0.25s !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(0,242,255,0.15) !important;
+    outline: none !important;
+}
+.stTextInput label {
+    color: var(--muted) !important;
+    font-size: 0.85rem !important;
+    letter-spacing: 0.05em !important;
+}
+
+/* ============ BUTTONS — LOGIN ============ */
+[data-testid="stVerticalBlock"]:has(> [data-testid="stImage"]) .stButton > button {
+    width: 100% !important;
+    background: linear-gradient(135deg, var(--primary), rgba(0,242,255,0.5)) !important;
+    color: #000 !important;
+    font-weight: 800 !important;
+    font-size: 1rem !important;
+    border: none !important;
+    border-radius: 14px !important;
+    padding: 0.75rem !important;
+    letter-spacing: 0.1em !important;
+    transition: all 0.3s !important;
+    box-shadow: 0 0 20px rgba(0,242,255,0.35) !important;
+    min-height: auto !important;
+}
+[data-testid="stVerticalBlock"]:has(> [data-testid="stImage"]) .stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 0 35px rgba(0,242,255,0.6) !important;
+}
+
+/* ============ DASHBOARD GRID BUTTONS ============ */
+.main .stButton > button {
+    width: 100% !important;
+    height: 130px !important;           /* FIXED height — all cards identical */
+    min-height: unset !important;
+    max-height: 130px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgba(255,255,255,0.035) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 22px !important;
+    color: #e2e8f0 !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    letter-spacing: 0.02em !important;
+    transition: all 0.35s cubic-bezier(0.165,0.84,0.44,1) !important;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 24px rgba(0,0,0,0.25) !important;
+    backdrop-filter: blur(12px) !important;
+    padding: 0 1rem !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    text-align: center !important;
+    line-height: 1.4 !important;
+    overflow: hidden !important;
+}
+.main .stButton > button:hover {
+    background: rgba(255,255,255,0.07) !important;
+    transform: translateY(-5px) scale(1.015) !important;
+    color: #fff !important;
+}
+/* Per-column neon glow on hover */
+div[data-testid="column"]:nth-child(1) .main .stButton > button:hover {
+    border-color: var(--primary) !important;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(0,242,255,0.3) !important;
+    color: var(--primary) !important;
+}
+div[data-testid="column"]:nth-child(2) .main .stButton > button:hover {
+    border-color: var(--secondary) !important;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(57,255,20,0.3) !important;
+    color: var(--secondary) !important;
+}
+div[data-testid="column"]:nth-child(3) .main .stButton > button:hover {
+    border-color: var(--accent) !important;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(255,0,234,0.3) !important;
+    color: var(--accent) !important;
+}
+div[data-testid="column"]:nth-child(4) .main .stButton > button:hover {
+    border-color: var(--gold) !important;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(255,215,0,0.3) !important;
+    color: var(--gold) !important;
+}
+
+/* ============ SECTION LABELS ============ */
+.section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin: 3rem 0 1.2rem 0;
+    padding-left: 2px;
+    opacity: 0.8;
+}
+.section-label::after {
+    content: '';
+    display: block;
+    width: 120px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0,242,255,0.5), transparent);
+}
+
+/* ============ PROGRESS BAR ============ */
+.stProgress > div > div > div > div {
+    background: linear-gradient(90deg, var(--primary), var(--secondary)) !important;
+    border-radius: 99px !important;
+    box-shadow: 0 0 12px rgba(0,242,255,0.45) !important;
+}
+
+/* ============ DATAFRAMES ============ */
+.stDataFrame {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 18px !important;
+}
+
+/* ============ SELECTBOX / RADIO ============ */
+.stSelectbox > div > div {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    color: #fff !important;
+}
+
+/* ============ FILE UPLOADER ============ */
+[data-testid="stFileUploader"] {
+    background: var(--surface) !important;
+    border: 2px dashed var(--border) !important;
+    border-radius: 16px !important;
+    padding: 1rem !important;
+}
+
+/* ============ METRICS ============ */
+[data-testid="stMetricValue"] {
+    color: var(--primary) !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 800 !important;
+    font-size: 2rem !important;
+}
+
+/* ============ FADE-IN ANIMATION ============ */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.dashboard-grid {
+    animation: fadeUp 0.6s ease-out both;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Path to the login log file
+LOGIN_LOG_FILE = "login_logs.csv"
+
+def log_login(username):
+    log_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    new_entry = pd.DataFrame([[username, log_time]], columns=["Username", "LoginTime"])
+    if os.path.exists(LOGIN_LOG_FILE):
+        new_entry.to_csv(LOGIN_LOG_FILE, mode='a', header=False, index=False)
+    else:
+        new_entry.to_csv(LOGIN_LOG_FILE, index=False)
+
 # ------------------ LOGIN ------------------
 # Easy-to-add users system
 users = {
@@ -28,148 +268,54 @@ users = {
     "sneha":"1234"
 }
 
-# Path to the login log file
-LOGIN_LOG_FILE = "login_logs.csv"
-
-def log_login(username):
-    log_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    new_entry = pd.DataFrame([[username, log_time]], columns=["Username", "LoginTime"])
-    if os.path.exists(LOGIN_LOG_FILE):
-        new_entry.to_csv(LOGIN_LOG_FILE, mode='a', header=False, index=False)
-    else:
-        new_entry.to_csv(LOGIN_LOG_FILE, index=False)
-
-st.title("🔐 Login to Yogiram Automation")
-username = st.text_input("Username")
-password = st.text_input("Password", type="password")
-
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-if st.button("Login"):
-    if username in users and password == users[username]:
-        st.session_state.logged_in = True
-        st.success(f"Login successful! Welcome {username}")
-        log_login(username)
-    else:
-        st.error("Invalid username or password")
-
-# Stop the rest of the app if not logged in
 if not st.session_state.logged_in:
+    col_l, col_c, col_r = st.columns([1, 1.5, 1])
+    with col_c:
+        if os.path.exists("logo.png"):
+            st.image("logo.png", width=120)
+        st.markdown("""
+            <h1 style='font-size:2.2rem; margin-top:0.8rem; -webkit-text-fill-color:#fff;'>
+                🔐 Authentication
+            </h1>
+            <p style='color:rgba(255,255,255,0.5); margin-bottom:1.5rem; font-size:0.95rem;'>
+                Yogiram Strategic Operations Portal
+            </p>
+        """, unsafe_allow_html=True)
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.button("Access Portal"):
+            if username in users and password == users[username]:
+                st.session_state.logged_in = True
+                st.session_state.user = username
+                st.success("Access Granted.")
+                log_login(username)
+                st.rerun()
+            else:
+                st.error("Invalid credentials.")
     st.stop()
 
+# Get username from session
+username = st.session_state.user
 
+# ------------------ HELPER FOR LOADING PROGRESS ------------------
+def load_data_with_progress(file):
+    import time
+    progress_bar = st.progress(0)
+    for percent_complete in range(100):
+        time.sleep(0.001) # fast fake progress for smooth feel
+        progress_bar.progress(percent_complete + 1)
+    
+    if file.name.endswith(".csv"):
+        return pd.read_csv(file)
+    else:
+        return pd.read_excel(file)
 
+# ------------------ NAVIGATION HELPERS ------------------
+def go_home(): st.session_state.page = "home"
 
-# ------------------ CUSTOM CSS ------------------
-st.markdown("""
-<style>
-/* ---------------- BODY & BACKGROUND ---------------- */
-body {
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    font-family: 'Poppins', sans-serif;
-    color: #f1f1f1;
-    margin: 0;
-    padding: 0;
-}
-
-/* ---------------- STREAMLIT MAIN CONTAINER ---------------- */
-.css-1d391kg {
-    max-width: 1000px !important;
-    width: 100% !important;
-    margin: 20px auto !important;
-    padding: 30px 40px !important;
-    min-height: 900px;
-}
-
-/* ---------------- LOGIN & MODULES VERTICAL ALIGN ---------------- */
-.stTextInput > div, 
-.stButton > div, 
-.stFileUploader>div,
-.stDataFrame div[data-testid="stDataFrameContainer"] {
-    width: 100% !important;
-    max-width: 500px;
-    min-width: 500px;
-    margin: 10px 0 !important;  /* stack vertically */
-    display: block !important;
-}
-
-/* ---------------- HEADINGS ---------------- */
-h1 {
-    font-size: 48px;
-    text-align: center;
-    color: #00ffd5;
-    margin-bottom: 20px;
-}
-h2, h3 {
-    color: #b0eaff;
-    text-align: center;
-}
-
-/* ---------------- BUTTONS ---------------- */
-.stButton > button {
-    width: 100% !important;
-    max-width: 500px;
-    min-width: 500px;
-    display: block !important;
-    margin: 10px 0 !important;
-    background: rgba(255,255,255,0.08);
-    color: #00ffd5;
-    font-weight: 600;
-    font-size: 18px;
-    border-radius: 12px;
-    padding: 12px 0;
-    border: 2px solid #00ffd5;
-    box-shadow: 0 0 10px rgba(0,255,213,0.3);
-}
-
-/* ---------------- TEXT INPUTS ---------------- */
-.stTextInput > div > div > input {
-    width: 100% !important;
-    max-width: 500px;
-    min-width: 500px;
-    display: block !important;
-    padding: 12px 15px;
-    font-size: 16px;
-}
-
-/* ---------------- FILE UPLOADER ---------------- */
-.stFileUploader>div>div {
-    padding: 18px;
-    background: rgba(255,255,255,0.05);
-    color: #e0e0e0;
-    border: 2px dashed #00ffd5aa;
-    border-radius: 15px;
-}
-
-/* ---------------- TABLES ---------------- */
-.stDataFrame th {
-    background: linear-gradient(90deg, #00c2ff, #00ffd5);
-    color: #000;
-    font-weight: bold;
-    text-align: center;
-}
-.stDataFrame td {
-    background: rgba(255,255,255,0.04);
-    color: #fff;
-}
-.stDataFrame div[data-testid="stDataFrameContainer"] {
-    margin-bottom: 30px;
-    border-radius: 15px;
-}
-
-/* ---------------- FOOTER ---------------- */
-footer {
-    text-align: center;
-    padding: 10px;
-    background: rgba(0,0,0,0.3);
-    color: #ccc;
-    font-size: 14px;
-    border-top: 1px solid rgba(255,255,255,0.2);
-}
-</style>
-
-""", unsafe_allow_html=True)
 
 
 
@@ -197,103 +343,189 @@ def go_courier_mapper():
     st.session_state.page = "courier_mapper"
 def go_pending_lock():
     st.session_state.page = "pending_lock_analyzer"
+def go_aging_analysis():
+    st.session_state.page = "aging_analysis"
 
-
-
-
-
-
-# ------------------ HOME PAGE ------------------
+# ================== HOME PAGE ==================
 if st.session_state.page == "home":
-    st.markdown("<h1>⚙️ Yogiram Automation System</h1>", unsafe_allow_html=True)
-    st.markdown("<h2>Welcome to the Automation Portal</h2>", unsafe_allow_html=True)
-    st.markdown("---")
-    st.markdown("### Choose an automation to run 👇")
 
-    # Vertical buttons
-    if st.button("ℹ️ Info Portal"):
-        go_info()
-
-    if st.button("📂 Claim Portal"):
-        go_claim()
-    if st.button("📊 Max/Min Value Portal"):
-        go_maxmin()
-    if st.button("💰 Sales Portal"):
-        go_sales()
-    if username == "admin" and st.button("📝 Login Activity"):
-        go_admin_log()
-    if st.button("🛒 Apollo Check Portal"):
-        go_apollo()
-    if st.button("📦 Pending Indents Check"):
-        go_pending_indents()
-    if st.button("🧾 NA Finder"):
-        go_na_finder()
-    if st.button("📊 DB Age Analysis Portal"):
-        st.session_state.page = "db_age"
-    if st.button("💳 Payment Due Tracker"):
-        go_payment_due()
-    if st.button("💹 Sales Contribution Analyzer"):
-        st.session_state.page = "sales_contribution"
-    if st.button("📦 Courier Bill Count Portal"):
-        go_courier_mapper()
-    if st.button("🧠 AI Data Analyst Portal"):
-        st.session_state.page = "ai_data_assistant"
-    if st.button("📦 Pending Order Lock Analyzer"):
-        go_pending_lock()
-
-
-
-
-
-
-
-    st.markdown("---")
     st.markdown("""
-        <footer>
-            Created by <b>Gokul</b> — Data Analyst, <b>Yogiram</b>
-        </footer>
+        <div style="text-align:center; padding:2rem 0 0.25rem 0;">
+            <div style="display:inline-block; background:rgba(0,242,255,0.07);
+                        border:1px solid rgba(0,242,255,0.2); border-radius:99px;
+                        padding:5px 22px; font-size:0.7rem; font-weight:800;
+                        letter-spacing:0.35em; color:#00f2ff; text-transform:uppercase;
+                        margin-bottom:1.4rem;">&#9889; COMMAND CENTER</div>
+            <h1 style="font-size:clamp(2rem,5vw,3.4rem); font-weight:800; letter-spacing:-2px;
+                       background:linear-gradient(135deg,#fff 30%,#64748b 100%);
+                       -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+                       margin:0 0 0.5rem 0; line-height:1.1;">Yogiram Automation</h1>
+            <p style="color:rgba(255,255,255,0.35); font-size:1rem; margin:0;">
+                Strategic Business Intelligence &amp; Operations Portal
+            </p>
+        </div>
     """, unsafe_allow_html=True)
+
+
+
+    # Frequently Used section header
+    st.markdown("""
+        <div style="display:flex;align-items:center;gap:14px;margin:2.5rem 0 1.4rem 0;">
+            <span style="font-size:0.7rem;font-weight:800;letter-spacing:0.38em;
+                         text-transform:uppercase;color:#00f2ff;white-space:nowrap;">
+                &#9889; Frequently Used
+            </span>
+            <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(0,242,255,0.4),transparent);"></div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    t1, t2, t3, t4 = st.columns(4, gap="medium")
+    with t1:
+        if st.button("ℹ️  Info Guide",       key="btn_info"):   go_info()
+        if st.button("🛒  Apollo Check",    key="btn_apollo"): go_apollo()
+    with t2:
+        if st.button("📦  Pending Indents", key="btn_pi"):     go_pending_indents()
+        if st.button("🧾  NA Finder",       key="btn_na"):     go_na_finder()
+    with t3:
+        if st.button("🔒  Order Lock",      key="btn_ol"):     go_pending_lock()
+        if st.button("⏳  Due List",              key="btn_due"):    go_aging_analysis()
+    with t4:
+        if st.button("🚚  Courier Map",     key="btn_cm"):     go_courier_mapper()
+        if st.button("💰  Sales Portal",   key="btn_sales"):  go_sales()
+
+    # Additional Modules section header
+    st.markdown("""
+        <div style="display:flex;align-items:center;gap:14px;margin:2.5rem 0 1.4rem 0;">
+            <span style="font-size:0.7rem;font-weight:800;letter-spacing:0.38em;
+                         text-transform:uppercase;color:#bc8cff;white-space:nowrap;">
+                🛠 Additional Modules
+            </span>
+            <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(188,140,255,0.4),transparent);"></div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    a1, a2, a3, a4 = st.columns(4, gap="medium")
+    with a1:
+        if st.button("📂  Claim Portal",      key="btn_claim"):   go_claim()
+        if st.button("📊  Max Min Portal",    key="btn_mm"):      go_maxmin()
+    with a2:
+        if st.button("📊  DB Age Analysis",   key="btn_db"):      st.session_state.page = "db_age"
+        if st.button("💳  Payment Tracker",   key="btn_pay"):     go_payment_due()
+    with a3:
+        if st.button("💹  Contribution",      key="btn_contrib"): st.session_state.page = "sales_contribution"
+        if st.button("🧠  AI Analyst",        key="btn_ai"):      st.session_state.page = "ai_data_assistant"
+    with a4:
+        pass
+
+    if username == "admin":
+        st.markdown("""
+            <div style="display:flex;align-items:center;gap:14px;margin:2.5rem 0 1.4rem 0;">
+                <span style="font-size:0.7rem;font-weight:800;letter-spacing:0.38em;
+                             text-transform:uppercase;color:#ffd700;white-space:nowrap;">
+                    🔑 Admin
+                </span>
+                <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(255,215,0,0.4),transparent);"></div>
+            </div>
+        """, unsafe_allow_html=True)
+        adm1, adm2, adm3, adm4 = st.columns(4, gap="medium")
+        with adm1:
+            if st.button("📝  Login Activity", key="btn_admin"): go_admin_log()
+
+
+
+    st.markdown("""
+        <div style="margin-top:4rem; padding:2rem 0.5rem; border-top:1px solid rgba(255,255,255,0.06);
+                    display:flex; justify-content:space-between; align-items:flex-end;">
+            <div style="color:rgba(255,255,255,0.25); font-size:0.75rem; line-height:1.6;">
+                <p style="margin:0; letter-spacing:0.1em; font-weight:700;">YOGIRAM AUTOMATION &nbsp;·&nbsp; v4.0</p>
+                <p style="margin:0; opacity:0.6;">Signed in as <strong style="color:#00f2ff;">{user}</strong></p>
+            </div>
+            <div style="text-align:right;">
+                <p style="margin:0; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.2em; color:rgba(255,255,255,0.3); font-weight:800;">Developed By</p>
+                <p style="margin:0; font-size:1.1rem; font-weight:800; background:linear-gradient(135deg,#00f2ff,#39ff14); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-family:'Outfit';">Gokul Srinivas</p>
+                <p style="margin:0; font-size:0.75rem; color:rgba(255,255,255,0.5); font-weight:600; letter-spacing:0.05em;">Data Analyst</p>
+            </div>
+        </div>
+    """.format(user=username), unsafe_allow_html=True)
+
 
 
 # ------------------ INFO MODULE ------------------
 elif st.session_state.page == "info":
-    st.title("ℹ️ Info & Instructions Portal")
+    st.title("ℹ️️ Info & Instructions Portal")
 
     if st.button("🏠 Back to Home"):
         st.session_state.page = "home"
 
     st.markdown("""
-    ### Claim Report - Invalid Free Qty Issued
-    - Upload the claim report file downloaded from your system.
-    - Ensure columns like 'Company Name', 'Claim Amount', 'Free Qty' exist.
-    - Click 🚀 Process Data to generate summary of invalid free quantities issued.
+    ### 📂 Claim Portal
+    - Upload the claim report file (Excel/CSV).
+    - Groups data by 'Company Name' and sums 'Claim Amount'.
+    - Generates a company-wise total claim summary for download.
 
-    ### Pending Indent Module - NS %
-    - Upload Pending Indents file and Order Details file.
-    - Make sure columns like 'Ind.No.', 'Ordered Items', 'Invoice Items' exist.
-    - Click 🚀 Map & Aggregate Data to calculate NS % and fulfillment summary.
+    ### 📊 Max/Min Value Portal
+    - Upload any dataset with numeric columns.
+    - Quickly identifies the Maximum and Minimum values across all numeric fields.
 
-    ### Statement with Indent No / Time Analysis Report
-    - Upload the relevant Excel/CSV report exported from the system.
-    - Columns like 'Indent No', 'Date', 'Time' should be present.
-    - Click 🚀 Process Data to analyze indent timelines and time-based trends.
+    ### 💰 Sales Portal
+    - Upload a detailed Sales Export file.
+    - Analyzes performance by Weekday, Company, Outlet, Product, and Salesman.
+    - Provides a multi-sheet Excel summary for deep-dive analysis.
 
-    ### NS Report - NA Report / Current Status
-    - Upload NA/NS related data file.
-    - Columns must include 'Gold Code', 'Qty', 'NA', 'NA VALUE'.
-    - Click 🚀 Process & Merge Qty to get current NA/NS status report by company or SKU.
+    ### 🛒 Apollo Check Portal
+    - Analyzes order frequency and consistency for Apollo shops.
+    - Tracks 'Continuous' order streaks (e.g., items ordered 5 days in a row).
+    - Tracks 'Non-Continuous' total order counts within a period.
 
-    ### DB AGE - Supplier Claim Pending Report
-    - Upload supplier DB/claim pending file.
-    - Columns must include 'Supplier', 'DB Date', 'Pending Amount', etc.
-    - Select today or custom date to calculate DB age and generate summary report.
+    ### 📦 Pending Indents Check
+    - Upload 'Pending Indents' and 'Order Details' files.
+    - Maps ContractIDs and calculates Fulfillment % (NS %).
+    - Generates an aggregated summary by ContractID.
+
+    ### 🧾 NA Finder
+    - Upload 'Indent Data' and 'Item Master'.
+    - Aggregates NA/NS counts and values by SKU/Company.
+    - Merges current stock quantity from the Item Master for a complete status report.
+
+    ### 📊 DB Age Analysis
+    - Calculates the "Age" of supplier claims based on a reference date.
+    - Buckets claims into 0-30, 31-60, 61-90... Above 360 days.
+    - Generates a Supplier-wise pivot table of pending amounts.
+
+    ### 💳 Payment Due Tracker
+    - Uses `vendor_master.csv` to map payment terms (days).
+    - Compares bill dates with terms to find exact Due Dates.
+    - Filters by Today, Specific Date, or Range to see exactly how much is due to which vendors.
+
+    ### 💹 Sales Contribution Analyzer
+    - Performs Pareto analysis (80/20 rule) on sales data.
+    - Rank products by sales amount and identify the Top X% or Bottom X% contributors.
+    - Features "Nested Selection" to drill down into high-performing subsets.
+
+    ### 📦 Courier Bill Count Portal
+    - Merges Transaction files, Courier details, and Tray details.
+    - Groups bills by Account No. and adds specific Tray IDs for courier reporting.
+    - Generates a formatted report ready for courier dispatch.
+
+    ### 🧠 AI Data Analyst Portal
+    - Interactive AI assistant powered by Groq (Llama 3).
+    - Upload any data and ask questions in plain English (e.g., "What is my top company by profit?").
+    - AI automatically writes code, generates KPIs, and creates Plotly charts.
+
+    ### 📦 Pending Order Lock Analyzer
+    - Maps pending orders to "Lock Reasons" and "Salesmen".
+    - Helps identify why specific orders are stuck and who is responsible for them.
+
+    ### ⏳ Due List Checker
+    - Upload raw dues data with a **'DAYS'** numeric column.
+    - System automatically creates buckets: 0-30, 30-60, 60-90, 90-120, 120-180, 180-360, and Above 360 days.
+    - Provides a searchable multi-select tool to download individual "Dues Lists" for specific salesmen.
 
     ---
-    **Tips for All Modules:**
-    - Always verify column names before uploading.
-    - Export files in Excel/CSV format from your source system.
-    - Check info section for each module for more details.
-    - You can paste additional instructions or software download links here.
+    **General Tips:**
+    - Always ensure your files are in .xlsx or .csv format.
+    - Match column names as requested in each module.
+    - Use the 'Back to Home' button to switch between different tools.
     """)
 
 # ------------------ AI DATA ASSISTANT (ADVANCED) ------------------
@@ -1555,6 +1787,148 @@ elif st.session_state.page == "apollo":
     if st.button("🏠 Back to Home"):
         st.session_state.page = "home"
 
+
+# ------------------ DUE LIST CHECKER MODULE ------------------
+elif st.session_state.page == "aging_analysis":
+    import pandas as pd
+    import streamlit as st
+    from io import BytesIO
+    from datetime import datetime
+
+    st.title("⏳ Due List Checker Portal")
+
+    if st.button("🏠 Back to Home"):
+        st.session_state.page = "home"
+
+    # Helper function for Excel download
+    def to_excel_bytes(df_to_save, sheet_name="Due List"):
+        out = BytesIO()
+        with pd.ExcelWriter(out, engine="openpyxl") as writer:
+            df_to_save.to_excel(writer, index=True, sheet_name=sheet_name)
+        return out.getvalue()
+
+    # File Uploader
+    uploaded_file = st.file_uploader("Upload your Dues Statement (Excel/CSV)", type=["xlsx", "csv"], key="aging_upload")
+
+    if uploaded_file:
+        try:
+            # Using the new progress bar helper
+            df_raw = load_data_with_progress(uploaded_file)
+            
+            st.success("✅ File processed successfully!")
+            
+            # Column Normalization
+            df_raw.columns = df_raw.columns.str.strip()
+            
+            # Check for required columns
+            # The user updated that they have 'DAYS' instead of 'Due Days'
+            required_cols = ["REL NO.", "PARTYNAME", "SALESMAN", "DAYS", "OSAMT"]
+            missing = [c for c in required_cols if c not in df_raw.columns]
+            
+            if missing:
+                st.error(f"⚠️ Missing columns: {', '.join(missing)}")
+                st.stop()
+            
+            # Data Cleaning
+            df_raw["OSAMT"] = pd.to_numeric(df_raw["OSAMT"], errors="coerce").fillna(0)
+            df_raw["DAYS"] = pd.to_numeric(df_raw["DAYS"], errors="coerce").fillna(0)
+
+            # --- CUSTOM BUCKETING LOGIC ---
+            def categorize_days(d):
+                if d <= 30: return "0-30 Days"
+                elif d <= 60: return "30-60 Days"
+                elif d <= 90: return "60-90 Days"
+                elif d <= 120: return "90-120 Days"
+                elif d <= 180: return "120-180 Days"
+                elif d <= 360: return "180-360 Day"
+                else: return "Above 360 Day"
+
+            df_raw["Due Bucket"] = df_raw["DAYS"].apply(categorize_days)
+            
+            # Create Pivot Table using the new buckets
+            pivot_df = pd.pivot_table(
+                df_raw,
+                index=["REL NO.", "PARTYNAME", "SALESMAN"],
+                columns="Due Bucket",
+                values="OSAMT",
+                aggfunc="sum",
+                fill_value=0
+            )
+            
+            # Order Buckets
+            all_buckets = [
+                "0-30 Days", "30-60 Days", "60-90 Days", 
+                "90-120 Days", "120-180 Days", "180-360 Day", "Above 360 Day"
+            ]
+            
+            # Ensure all buckets exist in columns for a consistent layout
+            for b in all_buckets:
+                if b not in pivot_df.columns:
+                    pivot_df[b] = 0
+            
+            # Reorder columns to the requested sequence
+            pivot_df = pivot_df[all_buckets]
+            
+            # Add Grand Total
+            pivot_df["Grand Total"] = pivot_df.sum(axis=1)
+            
+            st.write("### 📊 Complete Aging Pivot Table")
+            st.dataframe(pivot_df, use_container_width=True)
+            
+            # Full Download Option
+            full_excel = to_excel_bytes(pivot_df)
+            st.download_button(
+                label="📥 Download Full Result (Excel)",
+                data=full_excel,
+                file_name=f"Aging_Analysis_Full_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            
+            st.markdown("---")
+            
+            # Salesman-wise Filtered Download
+            st.subheader("🎯 Salesman-wise Selective Download")
+            
+            # Get unique salesmen
+            salesmen_list = sorted(df_raw["SALESMAN"].dropna().unique())
+            
+            selected_salesmen = st.multiselect(
+                "🔍 Search and Select Salesman / Salesmen",
+                options=salesmen_list,
+                placeholder="Choose one or more names..."
+            )
+            
+            if selected_salesmen:
+                # Filter the pivot table
+                # Since SALESMAN is part of the index (level 2), we use .xs or .query
+                # Using .reset_index() temporarily for easier filtering
+                filtered_pivot = pivot_df.reset_index()
+                filtered_pivot = filtered_pivot[filtered_pivot["SALESMAN"].isin(selected_salesmen)]
+                
+                # Set index back to match original format
+                filtered_pivot = filtered_pivot.set_index(["REL NO.", "PARTYNAME", "SALESMAN"])
+                
+                st.write(f"### 📋 Preview for Selected Salesmen ({len(selected_salesmen)})")
+                st.dataframe(filtered_pivot, use_container_width=True)
+                
+                # File Naming Logic
+                salesmen_str = "_".join(selected_salesmen)[:50] # Truncate if too many
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                filtered_filename = f"dues list for ({salesmen_str}) {today_str}.xlsx"
+                
+                filtered_excel = to_excel_bytes(filtered_pivot)
+                st.download_button(
+                    label=f"📥 Download Dues List for Selected",
+                    data=filtered_excel,
+                    file_name=filtered_filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                st.info("Select one or more salesmen above to download their specific dues list.")
+
+        except Exception as e:
+            st.error(f"⚠️ Error processing file: {e}")
+            st.exception(e)
 
 # ------------------ ADMIN LOGIN LOG PAGE ------------------
 elif st.session_state.page == "admin_log":
