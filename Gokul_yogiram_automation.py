@@ -5,6 +5,17 @@ from datetime import datetime
 import os
 
 
+import time
+
+# ------------------ UTILS ------------------
+def load_data_with_progress(uploaded_file):
+    with st.spinner("🚀 Analyzing Data Structure..."):
+        time.sleep(0.5) # Aesthetic pause
+        if uploaded_file.name.endswith(".csv"):
+            return pd.read_csv(uploaded_file)
+        else:
+            return pd.read_excel(uploaded_file)
+
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(
     page_title="Yogiram Automation - Gokul",
@@ -45,9 +56,9 @@ st.markdown("""
 [data-testid="stHeader"] { background: transparent; }
 
 /* ============ TYPOGRAPHY ============ */
-body, p, span, div, label {
+.main p, .main span, .main div, .main label {
     font-family: 'Plus Jakarta Sans', sans-serif !important;
-    color: var(--text) !important;
+    color: var(--text); /* Remove !important to let widgets use their internal colors */
 }
 h1, h2, h3, h4 {
     font-family: 'Outfit', sans-serif !important;
@@ -217,10 +228,32 @@ div[data-testid="column"]:nth-child(4) .main .stButton > button:hover {
 
 /* ============ FILE UPLOADER ============ */
 [data-testid="stFileUploader"] {
-    background: var(--surface) !important;
-    border: 2px dashed var(--border) !important;
+    background: rgba(255,255,255,0.02) !important;
+    border: 1px dashed rgba(255,255,255,0.15) !important;
     border-radius: 16px !important;
-    padding: 1rem !important;
+    padding: 1.5rem !important;
+    transition: all 0.3s ease !important;
+}
+[data-testid="stFileUploader"]:hover {
+    border-color: var(--primary) !important;
+    background: rgba(255,255,255,0.04) !important;
+}
+/* Fix overlapping text/labels in uploader */
+[data-testid="stFileUploader"] section {
+    background: transparent !important;
+}
+[data-testid="stFileUploader"] label {
+    font-weight: 600 !important;
+    margin-bottom: 0.8rem !important;
+    color: var(--primary) !important;
+}
+/* Ensure the button inside doesn't inherit module card styles */
+[data-testid="stFileUploader"] button {
+    height: auto !important;
+    width: auto !important;
+    padding: 0.5rem 1rem !important;
+    background: var(--primary) !important;
+    color: #000 !important;
 }
 
 /* ============ METRICS ============ */
@@ -1795,10 +1828,10 @@ elif st.session_state.page == "aging_analysis":
     from io import BytesIO
     from datetime import datetime
 
-    st.title("⏳ Due List Checker Portal")
-
     if st.button("🏠 Back to Home"):
         st.session_state.page = "home"
+
+    st.title("⏳ Due List Checker Portal")
 
     # Helper function for Excel download
     def to_excel_bytes(df_to_save, sheet_name="Due List"):
