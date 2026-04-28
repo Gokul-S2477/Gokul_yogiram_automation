@@ -211,11 +211,32 @@ div[data-testid="column"]:nth-child(4) .main .stButton > button:hover {
     box-shadow: 0 0 12px rgba(0,242,255,0.45) !important;
 }
 
-/* ============ DATAFRAMES ============ */
-.stDataFrame {
+/* ============ DATAFRAMES & TABLES ============ */
+.stDataFrame, [data-testid="stTable"] {
     background: var(--surface) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 18px !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+/* Force internal grid lines */
+.stDataFrame [data-testid="styled-table-container"] {
+    border: 1px solid var(--border) !important;
+}
+table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+}
+th, td {
+    border: 1px solid var(--border) !important;
+    padding: 12px !important;
+    text-align: left !important;
+}
+th {
+    background: rgba(255,255,255,0.05) !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
 }
 
 /* ============ SELECTBOX / RADIO ============ */
