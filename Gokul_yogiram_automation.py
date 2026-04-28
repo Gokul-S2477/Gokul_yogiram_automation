@@ -152,7 +152,7 @@ h1, h2, h3, h4 {
 /* ============ HIDE CHROME ============ */
 #MainMenu { visibility: hidden; }
 footer    { visibility: hidden; }
-[data-testid="stToolbar"] { display: none; }
+
 
 /* ============ SCROLLBAR ============ */
 ::-webkit-scrollbar { width: 5px; }
