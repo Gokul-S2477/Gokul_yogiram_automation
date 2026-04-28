@@ -232,11 +232,13 @@ th, td {
     text-align: left !important;
 }
 th {
-    background: rgba(255,255,255,0.05) !important;
+    background: #F4B084 !important; /* Orange, Accent 6, Lighter 40% */
+    color: #1a1a1a !important;     /* High contrast dark text */
     font-weight: 800 !important;
     text-transform: uppercase;
     font-size: 0.75rem;
     letter-spacing: 0.05em;
+    border: 1px solid rgba(0,0,0,0.1) !important;
 }
 
 /* ============ SELECTBOX / RADIO ============ */
