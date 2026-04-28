@@ -16,6 +16,90 @@ def load_data_with_progress(uploaded_file):
         else:
             return pd.read_excel(uploaded_file)
 
+def save_df_to_excel_with_format(df, sheet_name="Data", index=True):
+    from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    
+    out = BytesIO()
+    with pd.ExcelWriter(out, engine="openpyxl") as writer:
+        df.to_excel(writer, index=index, sheet_name=sheet_name)
+        workbook = writer.book
+        worksheet = writer.sheets[sheet_name]
+
+        # Colors (Orange Accent 6 Lighter 40% -> #F4B084)
+        header_fill = PatternFill(start_color="F4B084", end_color="F4B084", fill_type="solid")
+        header_font = Font(bold=True, color="000000")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Format header
+        for cell in worksheet[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        # Format data and add borders
+        for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, 
+                                       min_col=1, max_col=worksheet.max_column):
+            for cell in row:
+                cell.border = thin_border
+        
+        # Auto-adjust column widths
+        for i, col in enumerate(worksheet.columns, 1):
+            max_length = 0
+            column = get_column_letter(i)
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except: pass
+            worksheet.column_dimensions[column].width = max_length + 2
+
+    return out.getvalue()
+
+def save_multi_df_to_excel_with_format(df_dict):
+    from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    
+    out = BytesIO()
+    with pd.ExcelWriter(out, engine="openpyxl") as writer:
+        for sheet_name, df in df_dict.items():
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+            worksheet = writer.sheets[sheet_name]
+            
+            header_fill = PatternFill(start_color="F4B084", end_color="F4B084", fill_type="solid")
+            header_font = Font(bold=True, color="000000")
+            thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), 
+                                 top=Side(style='thin'), bottom=Side(style='thin'))
+
+            for cell in worksheet[1]:
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.border = thin_border
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row, 
+                                           min_col=1, max_col=worksheet.max_column):
+                for cell in row:
+                    cell.border = thin_border
+            
+            for i, col in enumerate(worksheet.columns, 1):
+                max_length = 0
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length: max_length = len(str(cell.value))
+                    except: pass
+                worksheet.column_dimensions[get_column_letter(i)].width = max_length + 2
+
+    return out.getvalue()
+
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(
     page_title="Yogiram Automation - Gokul",
@@ -406,12 +490,30 @@ def go_aging_analysis():
 if st.session_state.page == "home":
 
     st.markdown("""
-        <div style="text-align:center; padding:2rem 0 0.25rem 0;">
+        <div style="position:relative; text-align:center; padding:2rem 0 0.25rem 0;">
+            <!-- System Status Pill -->
+            <div style="position:absolute; top:0; right:0; display:flex; align-items:center; gap:10px;
+                        background:rgba(57,255,20,0.06); border:1px solid rgba(57,255,20,0.2);
+                        padding:6px 14px; border-radius:99px;">
+                <div style="width:8px; height:8px; background:#39ff14; border-radius:50%;
+                            box-shadow:0 0 10px #39ff14; animation: pulse 2s infinite;"></div>
+                <span style="font-size:0.65rem; font-weight:800; color:#39ff14; 
+                             letter-spacing:0.1em; text-transform:uppercase;">System Active</span>
+            </div>
+            
+            <style>
+            @keyframes pulse {
+                0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(57,255,20, 0.7); }
+                70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(57,255,20, 0); }
+                100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(57,255,20, 0); }
+            }
+            </style>
+
             <div style="display:inline-block; background:rgba(0,242,255,0.07);
                         border:1px solid rgba(0,242,255,0.2); border-radius:99px;
                         padding:5px 22px; font-size:0.7rem; font-weight:800;
                         letter-spacing:0.35em; color:#00f2ff; text-transform:uppercase;
-                        margin-bottom:1.4rem;">&#9889; COMMAND CENTER</div>
+                        margin-bottom:1.4rem;">⚡ COMMAND CENTER</div>
             <h1 style="font-size:clamp(2rem,5vw,3.4rem); font-weight:800; letter-spacing:-2px;
                        background:linear-gradient(135deg,#fff 30%,#64748b 100%);
                        -webkit-background-clip:text; -webkit-text-fill-color:transparent;
@@ -821,22 +923,18 @@ elif st.session_state.page == "payment_due":
         st.dataframe(detailed_df, use_container_width=True)
 
         # ------------------ DOWNLOAD FUNCTIONS ------------------
-        def to_excel_bytes(df, sheet_name="Sheet1"):
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                df.to_excel(writer, index=False, sheet_name=sheet_name)
-            return output.getvalue()
+
 
         st.download_button(
             "📥 Download Company Summary (Excel)",
-            data=to_excel_bytes(company_summary, "Company Summary"),
+            data=save_df_to_excel_with_format(company_summary, sheet_name="Company Summary", index=False),
             file_name=f"Company_Summary_{datetime.now().date()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
         st.download_button(
             "📥 Download Detailed Dues (Excel)",
-            data=to_excel_bytes(detailed_df, "Detailed Dues"),
+            data=save_df_to_excel_with_format(detailed_df, sheet_name="Detailed Dues", index=False),
             file_name=f"Detailed_Dues_{datetime.now().date()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
@@ -869,7 +967,7 @@ elif st.session_state.page == "claim":
                     df.to_excel(writer, index=False, sheet_name='Summary')
                 return output.getvalue()
 
-            excel_data = to_excel(grouped)
+            excel_data = save_df_to_excel_with_format(grouped, sheet_name="Summary")
             today_date = datetime.now().strftime("%Y-%m-%d")
             file_name = f"Company_Wise_Free_Claim_Issued_{today_date}.xlsx"
             st.download_button("📥 Download Processed File", data=excel_data, file_name=file_name,
@@ -932,14 +1030,9 @@ elif st.session_state.page == "sales":
             st.write("### 👨‍💼 Total Sales by Salesman")
             st.dataframe(salesman_sales.sort_values('Value', ascending=False))
 
-            def to_excel(df_dict):
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    for sheet_name, data in df_dict.items():
-                        data.to_excel(writer, index=False, sheet_name=sheet_name)
-                return output.getvalue()
 
-            excel_data = to_excel({
+
+            excel_data = save_multi_df_to_excel_with_format({
                 "Sales_by_Day": sales_by_day,
                 "Sales_by_Company": company_sales,
                 "Sales_by_Outlet": outlet_sales,
@@ -1006,7 +1099,7 @@ elif st.session_state.page == "pending_indents":
                     df.to_excel(writer, index=False, sheet_name='Summary')
                 return output.getvalue()
 
-            st.download_button("📥 Download Excel", data=to_excel(final_df), file_name="Pending_Indents_Summary.xlsx",
+            st.download_button("📥 Download Excel", data=save_df_to_excel_with_format(final_df, sheet_name="Summary"), file_name="Pending_Indents_Summary.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
             # Download CSV
@@ -1082,13 +1175,9 @@ elif st.session_state.page == "na_finder":
 
             # ---------- Download buttons ----------
             from io import BytesIO
-            def to_excel(df):
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Merged')
-                return output.getvalue()
 
-            excel_data = to_excel(merged_df)
+
+            excel_data = save_df_to_excel_with_format(merged_df, sheet_name="Merged")
             st.download_button("📥 Download Final Excel", data=excel_data,
                                file_name="NA_Finder_Final.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -1118,7 +1207,7 @@ elif st.session_state.page == "na_finder":
                     st.dataframe(company_summary)
 
                     # Optional download
-                    excel_summary = to_excel(company_summary)
+                    excel_summary = save_df_to_excel_with_format(company_summary, sheet_name="Summary")
                     st.download_button("📥 Download Company Summary Excel", data=excel_summary,
                                        file_name="Company_NA_Summary.xlsx",
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -1207,13 +1296,9 @@ elif st.session_state.page == "db_age":
 
             # ------------------ DOWNLOAD ------------------
             from io import BytesIO
-            def to_excel(df):
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    df.to_excel(writer, index=False, sheet_name='DB_Age_Analysis')
-                return output.getvalue()
 
-            excel_data = to_excel(pivot_df)
+
+            excel_data = save_df_to_excel_with_format(pivot_df, sheet_name="DB_Age_Analysis")
             st.download_button("📥 Download DB Age Pivot Excel", data=excel_data,
                                file_name=f"DB_Age_Analysis_{pd.to_datetime(reference_date).strftime('%Y-%m-%d')}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -1434,11 +1519,7 @@ elif st.session_state.page == "sales_contribution":
         st.dataframe(nested_display, use_container_width=True)
 
     # ---------- Download options ----------
-    def to_excel_bytes(df_to_save, sheet_name="Sheet1"):
-        out = BytesIO()
-        with pd.ExcelWriter(out, engine="openpyxl") as writer:
-            df_to_save.to_excel(writer, index=False, sheet_name=sheet_name)
-        return out.getvalue()
+
 
     col_down_1, col_down_2 = st.columns(2)
     with col_down_1:
@@ -1459,14 +1540,14 @@ elif st.session_state.page == "sales_contribution":
             data_bytes = out.getvalue()
             st.download_button(
                 "📥 Download Selected + Nested (Excel)",
-                data=data_bytes,
+                data=save_multi_df_to_excel_with_format({"Selected_Summary": sel_display, f"Nested_{nested_percent}pct": nested_display}),
                 file_name=f"selected_nested_{pd.Timestamp.now().date()}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         else:
             st.download_button(
                 "📥 Download Selected (Excel)",
-                data=to_excel_bytes(sel_display),
+                data=save_df_to_excel_with_format(sel_display, sheet_name="Selected_Summary"),
                 file_name=f"selected_products_{pd.Timestamp.now().date()}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
@@ -1856,12 +1937,7 @@ elif st.session_state.page == "aging_analysis":
 
     st.title("⏳ Due List Checker Portal")
 
-    # Helper function for Excel download
-    def to_excel_bytes(df_to_save, sheet_name="Due List"):
-        out = BytesIO()
-        with pd.ExcelWriter(out, engine="openpyxl") as writer:
-            df_to_save.to_excel(writer, index=True, sheet_name=sheet_name)
-        return out.getvalue()
+
 
     # File Uploader
     uploaded_file = st.file_uploader("Upload your Dues Statement (Excel/CSV)", type=["xlsx", "csv"], key="aging_upload")
@@ -1932,7 +2008,7 @@ elif st.session_state.page == "aging_analysis":
             st.dataframe(pivot_df, use_container_width=True)
             
             # Full Download Option
-            full_excel = to_excel_bytes(pivot_df)
+            full_excel = save_df_to_excel_with_format(pivot_df, sheet_name="Full Aging Report")
             st.download_button(
                 label="📥 Download Full Result (Excel)",
                 data=full_excel,
@@ -1972,7 +2048,7 @@ elif st.session_state.page == "aging_analysis":
                 today_str = datetime.now().strftime("%Y-%m-%d")
                 filtered_filename = f"dues list for ({salesmen_str}) {today_str}.xlsx"
                 
-                filtered_excel = to_excel_bytes(filtered_pivot)
+                filtered_excel = save_df_to_excel_with_format(filtered_pivot, sheet_name="Selective Dues")
                 st.download_button(
                     label=f"📥 Download Dues List for Selected",
                     data=filtered_excel,
