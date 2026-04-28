@@ -982,49 +982,87 @@ elif st.session_state.page == "sales":
 
     uploaded_file = st.file_uploader("Upload your Sales Excel/CSV file", type=["xlsx", "csv"])
     if uploaded_file:
-        df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith(".xlsx") else pd.read_csv(uploaded_file)
+        # Suppress DtypeWarning with low_memory=False
+        if uploaded_file.name.endswith(".xlsx"):
+            df = pd.read_excel(uploaded_file)
+        else:
+            df = pd.read_csv(uploaded_file, low_memory=False)
+            
         st.write("### Uploaded Data Preview:")
         st.dataframe(df.head())
 
         if st.button("📊 Analyze Sales"):
-            df['Dated'] = pd.to_datetime(df['Dated'], errors='coerce', dayfirst=True)
-            df['Weekday'] = df['Dated'].dt.day_name()
+            # Normalize column detection
+            def get_col(candidates):
+                for c in candidates:
+                    for col in df.columns:
+                        if col.strip().lower() == c.lower():
+                            return col
+                return None
 
-            total_sales = df['Value'].sum()
+            dated_col = get_col(["Dated", "Date", "Bill Date"])
+            value_col = get_col(["Value", "Amount", "Amt", "Bill Amt", "Bill Amount"])
+            company_col = get_col(["Company", "Party", "Vendor", "Company Name"])
+            outlet_col = get_col(["Outlet", "Branch", "Store", "Outlet Name"])
+            product_col = get_col(["Product", "Item Name", "Item", "Product Name"])
+            salesman_col = get_col(["SalesMan", "Salesman", "Sales Man", "Sales Person", "SalesMan Name"])
+
+            # Check required columns
+            missing = []
+            if not dated_col: missing.append("Dated/Date")
+            if not value_col: missing.append("Value/Amount")
+            if missing:
+                st.error(f"⚠️ Missing required columns: {', '.join(missing)}")
+                st.stop()
+
+            # Process data
+            df[dated_col] = pd.to_datetime(df[dated_col], errors='coerce', dayfirst=True)
+            df['Weekday'] = df[dated_col].dt.day_name()
+            df[value_col] = pd.to_numeric(df[value_col], errors='coerce').fillna(0)
+
+            total_sales = df[value_col].sum()
             st.metric("💵 Total Sales", f"{total_sales:,.2f}")
 
-            sales_by_day = df.groupby('Weekday')['Value'].sum().reindex(
+            # 1. Sales by Weekday
+            sales_by_day = df.groupby('Weekday')[value_col].sum().reindex(
                 ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']).reset_index()
             st.write("### 🗓 Total Sales by Day")
-            st.dataframe(sales_by_day)
+            st.dataframe(sales_by_day, use_container_width=True)
 
-            company_sales = df.groupby('Company')['Value'].sum().reset_index()
-            st.write("### 🏢 Total Sales by Company")
-            st.dataframe(company_sales.sort_values('Value', ascending=False))
+            # 2. Sales by Company
+            if company_col:
+                company_sales = df.groupby(company_col)[value_col].sum().reset_index()
+                st.write(f"### 🏢 Total Sales by {company_col}")
+                st.dataframe(company_sales.sort_values(value_col, ascending=False), use_container_width=True)
+            
+            # 3. Sales by Outlet
+            if outlet_col:
+                outlet_sales = df.groupby(outlet_col)[value_col].sum().reset_index()
+                st.write(f"### 🏪 Total Sales by {outlet_col}")
+                st.dataframe(outlet_sales.sort_values(value_col, ascending=False), use_container_width=True)
 
-            outlet_sales = df.groupby('Outlet')['Value'].sum().reset_index()
-            st.write("### 🏪 Total Sales by Outlet")
-            st.dataframe(outlet_sales.sort_values('Value', ascending=False))
+            # 4. Sales by Product
+            if product_col:
+                product_sales = df.groupby(product_col)[value_col].sum().reset_index()
+                st.write(f"### 📦 Total Sales by {product_col}")
+                st.dataframe(product_sales.sort_values(value_col, ascending=False), use_container_width=True)
 
-            product_sales = df.groupby('Product')['Value'].sum().reset_index()
-            st.write("### 📦 Total Sales by Product")
-            st.dataframe(product_sales.sort_values('Value', ascending=False))
+            # 5. Sales by Salesman
+            if salesman_col:
+                salesman_sales = df.groupby(salesman_col)[value_col].sum().reset_index()
+                st.write(f"### 👨‍💼 Total Sales by {salesman_col}")
+                st.dataframe(salesman_sales.sort_values(value_col, ascending=False), use_container_width=True)
 
-            salesman_sales = df.groupby('SalesMan')['Value'].sum().reset_index()
-            st.write("### 👨‍💼 Total Sales by Salesman")
-            st.dataframe(salesman_sales.sort_values('Value', ascending=False))
+            # Generate formatted Excel export
+            export_dict = {"Sales_by_Day": sales_by_day}
+            if company_col: export_dict[f"Sales_by_{company_col[:20]}"] = company_sales
+            if outlet_col: export_dict[f"Sales_by_{outlet_col[:20]}"] = outlet_sales
+            if product_col: export_dict[f"Sales_by_{product_col[:20]}"] = product_sales
+            if salesman_col: export_dict[f"Sales_by_{salesman_col[:20]}"] = salesman_sales
 
+            excel_data = save_multi_df_to_excel_with_format(export_dict)
 
-
-            excel_data = save_multi_df_to_excel_with_format({
-                "Sales_by_Day": sales_by_day,
-                "Sales_by_Company": company_sales,
-                "Sales_by_Outlet": outlet_sales,
-                "Sales_by_Product": product_sales,
-                "Sales_by_Salesman": salesman_sales
-            })
-
-            st.download_button("📥 Download Sales Summary", data=excel_data,
+            st.download_button("📥 Download Sales Summary (Formatted)", data=excel_data,
                                file_name=f"Sales_Analysis_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
