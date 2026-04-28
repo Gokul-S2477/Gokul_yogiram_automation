@@ -150,7 +150,7 @@ h1, h2, h3, h4 {
 }
 
 /* ============ HIDE CHROME ============ */
-#MainMenu { visibility: hidden; }
+
 footer    { visibility: hidden; }
 
 
@@ -382,24 +382,7 @@ th {
 </style>
 """, unsafe_allow_html=True)
 
-# ============ GLOBAL SYSTEM STATUS ============
-st.markdown("""
-    <div style="position:fixed; top:20px; right:20px; z-index:9999; display:flex; align-items:center; gap:10px;
-                background:rgba(57,255,20,0.06); border:1px solid rgba(57,255,20,0.2);
-                padding:6px 14px; border-radius:99px; backdrop-filter:blur(10px);">
-        <div style="width:8px; height:8px; background:#39ff14; border-radius:50%;
-                    box-shadow:0 0 10px #39ff14; animation: statusPulse 2s infinite;"></div>
-        <span style="font-size:0.65rem; font-weight:800; color:#39ff14; 
-                     letter-spacing:0.1em; text-transform:uppercase;">System Active</span>
-    </div>
-    <style>
-    @keyframes statusPulse {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(57,255,20, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(57,255,20, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(57,255,20, 0); }
-    }
-    </style>
-""", unsafe_allow_html=True)
+
 
 # Path to the login log file
 LOGIN_LOG_FILE = "login_logs.csv"
