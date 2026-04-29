@@ -3,9 +3,15 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 import os
-
-
+import sys
 import time
+
+# Add Pharma Forecast App to path for modular integration
+PHARMA_APP_PATH = os.path.join(os.getcwd(), "pharma_forecast_app")
+if PHARMA_APP_PATH not in sys.path:
+    sys.path.append(PHARMA_APP_PATH)
+
+from modules.forecast_module import render_forecast_module
 
 # ------------------ UTILS ------------------
 def load_data_with_progress(uploaded_file):
@@ -487,6 +493,8 @@ def go_pending_lock():
     st.session_state.page = "pending_lock_analyzer"
 def go_aging_analysis():
     st.session_state.page = "aging_analysis"
+def go_forecast():
+    st.session_state.page = "pharma_forecast"
 
 # ================== HOME PAGE ==================
 if st.session_state.page == "home":
@@ -524,15 +532,15 @@ if st.session_state.page == "home":
     t1, t2, t3, t4 = st.columns(4, gap="medium")
     with t1:
         if st.button("ℹ️  Info Guide",       key="btn_info"):   go_info()
-        if st.button("🛒  Apollo Check",    key="btn_apollo"): go_apollo()
+        if st.button("📈  Pharma Forecast",  key="btn_fc"):     go_forecast()
     with t2:
+        if st.button("🛒  Apollo Check",    key="btn_apollo"): go_apollo()
         if st.button("📦  Pending Indents", key="btn_pi"):     go_pending_indents()
-        if st.button("🧾  NA Finder",       key="btn_na"):     go_na_finder()
     with t3:
         if st.button("🔒  Order Lock",      key="btn_ol"):     go_pending_lock()
         if st.button("⏳  Due List",              key="btn_due"):    go_aging_analysis()
     with t4:
-        if st.button("🚚  Courier Map",     key="btn_cm"):     go_courier_mapper()
+        if st.button("🧾  NA Finder",       key="btn_na"):     go_na_finder()
         if st.button("💰  Sales Portal",   key="btn_sales"):  go_sales()
 
     # Additional Modules section header
@@ -557,7 +565,7 @@ if st.session_state.page == "home":
         if st.button("💹  Contribution",      key="btn_contrib"): st.session_state.page = "sales_contribution"
         if st.button("🧠  AI Analyst",        key="btn_ai"):      st.session_state.page = "ai_data_assistant"
     with a4:
-        pass
+        if st.button("🚚  Courier Map",     key="btn_cm"):     go_courier_mapper()
 
     if username == "admin":
         st.markdown("""
@@ -1133,6 +1141,7 @@ elif st.session_state.page == "pending_indents":
 # ------------------ NA FINDER MODULE ------------------
 elif st.session_state.page == "na_finder":
     st.title("🧮 NA Finder Module")
+    if st.button("🏠 Back to Home"): go_home()
 
     # Upload files
     file1 = st.file_uploader("Upload first file (Indent Data)", type=["xlsx","csv"], key="file1")
@@ -1877,6 +1886,7 @@ elif st.session_state.page == "pending_lock_analyzer":
 # --------------------------- APOLLO CHECK ---------------------------
 elif st.session_state.page == "apollo":
     st.title("🚀 Apollo Check Module")
+    if st.button("🏠 Back to Home"): go_home()
 
     # ------------------ FILE UPLOADER ------------------
 
@@ -1942,9 +1952,6 @@ elif st.session_state.page == "apollo":
     summary_df = pd.DataFrame(summary_list, columns=['Shop Name','Item Name','Total Days Ordered'])
     summary_df = summary_df.sort_values('Total Days Ordered', ascending=False)
     st.dataframe(summary_df)
-
-    if st.button("🏠 Back to Home"):
-        st.session_state.page = "home"
 
 
 # ------------------ DUE LIST CHECKER MODULE ------------------
@@ -2118,7 +2125,38 @@ elif st.session_state.page == "aging_analysis":
 
         except Exception as e:
             st.error(f"⚠️ Error processing file: {e}")
-            st.exception(e)
+
+# ------------------ PHARMA FORECAST MODULE ------------------
+elif st.session_state.page == "pharma_forecast":
+    if st.button("🏠 Back to Home"):
+        st.session_state.page = "home"
+    
+    # Custom CSS for Forecast components to match Aurora theme
+    st.markdown("""
+        <style>
+        .forecast-hero {
+            background: rgba(255,255,255,0.03) !important;
+            border: 1px solid rgba(0,242,255,0.2) !important;
+            border-radius: 20px !important;
+            padding: 2rem !important;
+            margin-bottom: 2rem !important;
+            backdrop-filter: blur(10px);
+        }
+        .forecast-title {
+            font-size: 2.2rem !important;
+            font-weight: 800 !important;
+            background: linear-gradient(135deg, #fff, #00f2ff) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+        .forecast-subtitle {
+            color: rgba(255,255,255,0.5) !important;
+            font-size: 1rem !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    render_forecast_module()
 
 # ------------------ ADMIN LOGIN LOG PAGE ------------------
 elif st.session_state.page == "admin_log":
