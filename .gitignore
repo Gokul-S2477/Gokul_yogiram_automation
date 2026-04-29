@@ -1,0 +1,7 @@
+pharma_forecast_app/venv/
+pharma_forecast_app/release_*/
+__pycache__/
+*.pyc
+.DS_Store
+.streamlit/
+login_logs.csv
