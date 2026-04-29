@@ -8,290 +8,24 @@ from datetime import datetime, date, timedelta
 import os
 import sys
 import time
+import sys
+import os
+
+# Add pharma_forecast_app to sys.path to allow local imports within that folder
+current_dir = os.path.dirname(os.path.abspath(__file__))
+forecast_app_path = os.path.join(current_dir, "pharma_forecast_app")
+if os.path.exists(forecast_app_path) and forecast_app_path not in sys.path:
+    sys.path.append(forecast_app_path)
+
+try:
+    from modules.forecast_module import render_forecast_module
+except ImportError:
+    render_forecast_module = None
 
 # =========================================================
-# PHARMA FORECAST STANDALONE ENGINE (FULL VERSION)
+# PHARMA FORECAST STANDALONE ENGINE (MODULAR REDIRECT)
 # =========================================================
 
-MONTH_ALIASES = {
-    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
-    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7,
-    "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9, "oct": 10,
-    "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
-}
-
-FORECAST_RUN_KEY = "forecast_run_requested"
-FORECAST_OUTPUT_COLUMNS = [
-    "ITEM_CODE", "ITEM_NAME", "COMPANY", "PACK", "MONTHLY_AVG_QTY",
-    "WEEKLY_AVG_QTY", "DAILY_AVG_QTY", "TRUE_WEEKLY_DEMAND", "STOCK_QTY",
-    "RACK", "COST_RATE", "LAST_PURCHASE_DT", "DAYS_SINCE_LAST_PURCHASE",
-    "DAYS_OF_COVER", "NS_ACTIVE_DAYS", "NS_CONSECUTIVE_MAX", "NS_LINES_AVG",
-    "NS_QTY_AVG", "NS_TREND", "NS_LOSS_ORDER_AMT_30D", "NS_FILL_RATE_30D",
-    "NS_AFFECTED_PARTIES_30D", "SAFETY_STOCK", "FINAL_ORDER_QTY",
-    "FINAL_ORDER_VALUE", "MIN_ORDER_QTY", "MAX_ORDER_QTY", "STOCK_STATUS",
-    "ITEM_STATUS", "ORDER_REASON",
-]
-
-def fc_read_file(uploaded_file):
-    if uploaded_file is None: return None
-    name = uploaded_file.name.lower()
-    if name.endswith(".csv"): return pd.read_csv(uploaded_file)
-    return pd.read_excel(uploaded_file)
-
-def fc_extract_sales_columns(df):
-    if df is None or df.empty: return pd.DataFrame(columns=["ITEM_CODE", "ITEM_NAME", "COMPANY", "PACK", "LOCATION", "QTY"])
-    df = df.copy()
-    df.columns = df.columns.astype(str).str.strip().str.upper()
-    if "BARCODE" not in df.columns: raise ValueError("Sales file error: BARCODE column missing.")
-    df["ITEM_CODE"] = df["BARCODE"]
-    df["ITEM_NAME"] = df.get("ITEM NAME", "")
-    if "COMPANY" in df.columns:
-        df["COMPANY"] = df["COMPANY"]
-        df = df[df["COMPANY"].str.upper() != "DC CENTER"]
-    else: df["COMPANY"] = ""
-    df["PACK"] = df.get("PACK", "")
-    df["LOCATION"] = df.get("LOCATION", "")
-    qty_col = next((c for c in ["QTY.", "QTY"] if c in df.columns), None)
-    if qty_col is None: raise ValueError("Sales file error: QTY or QTY. column missing.")
-    df["QTY"] = pd.to_numeric(df[qty_col], errors="coerce").fillna(0)
-    return df[["ITEM_CODE", "ITEM_NAME", "COMPANY", "PACK", "LOCATION", "QTY"]]
-
-def fc_extract_stock_columns(df):
-    if df is None or df.empty: raise ValueError("Stock file is empty or not loaded")
-    df = df.copy()
-    df.columns = df.columns.astype(str).str.strip().str.upper()
-    item_col = next((c for c in ["ITEM CODE", "GOLD CODE"] if c in df.columns), None)
-    if item_col is None: raise ValueError("Stock file error: Item Code / Gold Code column missing.")
-    df["ITEM_CODE"] = df[item_col]
-    if "QTY" not in df.columns: raise ValueError("Stock file error: Qty column missing")
-    df["STOCK_QTY"] = pd.to_numeric(df["QTY"], errors="coerce").fillna(0)
-    df["RACK"] = df.get("RACK", "")
-    cost_rate_col = next((c for c in ["COSTRATE", "COST RATE", "COST"] if c in df.columns), None)
-    df["COST_RATE"] = pd.to_numeric(df[cost_rate_col], errors="coerce").fillna(0) if cost_rate_col else 0.0
-    lp_col = next((c for c in ["LAST PURCHASE DT.", "LAST PURCHASE DT", "LAST PURCHASE DATE"] if c in df.columns), None)
-    if lp_col: df["LAST_PURCHASE_DT"] = pd.to_datetime(df[lp_col], dayfirst=True, errors="coerce").dt.normalize()
-    else: df["LAST_PURCHASE_DT"] = pd.NaT
-    df["STOCK_PACK"] = df.get("PACK", "")
-    return df[["ITEM_CODE", "STOCK_QTY", "RACK", "COST_RATE", "LAST_PURCHASE_DT", "STOCK_PACK"]]
-
-def fc_extract_ns_columns(df):
-    if df is None or df.empty: return pd.DataFrame(columns=["ITEM_CODE", "NS_DATE", "NS_QTY", "NS_LINES", "NS_ORD_QTY", "NS_ISS_QTY", "NS_LOSS_ORDER_AMT", "NS_PARTY_CODE"])
-    df = df.copy()
-    df.columns = df.columns.astype(str).str.replace(r"\s+", " ", regex=True).str.strip().str.upper()
-    item_code_col = next((col for col in df.columns if col in ["ITEM CODE", "ITEMCODE"] or "ITEM CODE" in col or col.startswith("MDM")), None)
-    if item_code_col is None: raise ValueError(f"NS file error: Unable to detect Item Code column.")
-    df["ITEM_CODE"] = df[item_code_col]
-    loss_col = next((col for col in df.columns if "LOSS ORD" in col), None)
-    if loss_col is None: raise ValueError("NS file error: Loss Ord. column missing.")
-    df["NS_QTY"] = pd.to_numeric(df[loss_col], errors="coerce").fillna(0)
-    ord_qty_col = next((col for col in df.columns if ("ORD.QTY" in col or "ORD QTY" in col) and "LOSS ORD" not in col), None)
-    iss_qty_col = next((col for col in df.columns if "ISS.QTY" in col or "ISS QTY" in col), None)
-    loss_amt_col = next((col for col in df.columns if "LOSS ORDER AMT" in col), None)
-    df["NS_ORD_QTY"] = pd.to_numeric(df[ord_qty_col], errors="coerce").fillna(0) if ord_qty_col else 0
-    df["NS_ISS_QTY"] = pd.to_numeric(df[iss_qty_col], errors="coerce").fillna(0) if iss_qty_col else 0
-    df["NS_LOSS_ORDER_AMT"] = pd.to_numeric(df[loss_amt_col], errors="coerce").fillna(0) if loss_amt_col else 0
-    df["NS_PARTY_CODE"] = df["PARTY CODE"].astype(str).fillna("") if "PARTY CODE" in df.columns else ""
-    date_col = next((col for col in df.columns if "ORD.DATE" in col or "ORDER DATE" in col), None)
-    if date_col is None: raise ValueError("NS file error: Ord.Date column missing.")
-    def parse_date(val):
-        if pd.isna(val): return None
-        if isinstance(val, pd.Timestamp): return val.normalize()
-        m = re.search(r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", str(val))
-        return pd.to_datetime(m.group(1), dayfirst=True, errors="coerce") if m else None
-    df["NS_DATE"] = df[date_col].apply(parse_date)
-    df = df.dropna(subset=["NS_DATE"])
-    df["NS_DATE"] = df["NS_DATE"].dt.normalize()
-    df["NS_LINES"] = 1
-    return df[["ITEM_CODE", "NS_DATE", "NS_QTY", "NS_LINES", "NS_ORD_QTY", "NS_ISS_QTY", "NS_LOSS_ORDER_AMT", "NS_PARTY_CODE"]]
-
-def fc_aggregate_sales(file_dict):
-    frames = []
-    for f in file_dict.values(): frames.append(fc_extract_sales_columns(fc_read_file(f)))
-    if not frames: return pd.DataFrame(columns=["ITEM_CODE", "QTY"])
-    return pd.concat(frames, ignore_index=True).groupby("ITEM_CODE", as_index=False)["QTY"].sum()
-
-def fc_calculate_average(total_df, periods, level):
-    df = total_df.copy()
-    if df.empty: return pd.DataFrame(columns=["ITEM_CODE", "AVG_QTY"])
-    df["AVG_QTY"] = df["QTY"] / max(periods, 1)
-    if level == "DAILY": df["AVG_QTY"] = df["AVG_QTY"] * (7 / 6)
-    return df[["ITEM_CODE", "AVG_QTY"]]
-
-def fc_calculate_weighted_demand(m_avg, w_avg, d_avg, ns_df=None):
-    base = pd.DataFrame()
-    for df in [m_avg, w_avg, d_avg]:
-        if df is not None and not df.empty:
-            base = df[["ITEM_CODE"]] if base.empty else base.merge(df[["ITEM_CODE"]], on="ITEM_CODE", how="outer")
-    if base.empty: return pd.DataFrame(columns=["ITEM_CODE", "MONTHLY_AVG_QTY", "WEEKLY_AVG_QTY", "DAILY_AVG_QTY", "TRUE_WEEKLY_DEMAND"])
-    def attach(df, col): return df.rename(columns={"AVG_QTY": col}) if df is not None else None
-    base = base.merge(attach(m_avg, "MONTHLY_AVG_QTY"), on="ITEM_CODE", how="left") if m_avg is not None else base.assign(MONTHLY_AVG_QTY=0)
-    base = base.merge(attach(w_avg, "WEEKLY_AVG_QTY"), on="ITEM_CODE", how="left") if w_avg is not None else base.assign(WEEKLY_AVG_QTY=0)
-    base = base.merge(attach(d_avg, "DAILY_AVG_QTY"), on="ITEM_CODE", how="left") if d_avg is not None else base.assign(DAILY_AVG_QTY=0)
-    base = base.fillna(0)
-    base["MONTHLY_WEEK_EQ"] = base["MONTHLY_AVG_QTY"] / 4.33
-    base["DAILY_WEEK_EQ"] = base["DAILY_AVG_QTY"] * 6
-    base["RECENT_ACTIVITY"] = (base["WEEKLY_AVG_QTY"] > 0) | (base["DAILY_AVG_QTY"] > 0)
-    base["TRUE_WEEKLY_DEMAND"] = base["WEEKLY_AVG_QTY"]
-    base["TRUE_WEEKLY_DEMAND"] += (base["DAILY_WEEK_EQ"] - base["WEEKLY_AVG_QTY"]).clip(lower=0) * 0.50
-    base["TRUE_WEEKLY_DEMAND"] += np.where(base["WEEKLY_AVG_QTY"] < (0.5 * base["MONTHLY_WEEK_EQ"]), base["MONTHLY_WEEK_EQ"] * 0.30, 0)
-    base.loc[~base["RECENT_ACTIVITY"], "TRUE_WEEKLY_DEMAND"] = 0
-    base["TRUE_WEEKLY_DEMAND"] = np.minimum(base["TRUE_WEEKLY_DEMAND"], np.maximum(base["WEEKLY_AVG_QTY"] * 1.5, base["MONTHLY_WEEK_EQ"]))
-    return base[["ITEM_CODE", "MONTHLY_AVG_QTY", "WEEKLY_AVG_QTY", "DAILY_AVG_QTY", "TRUE_WEEKLY_DEMAND"]]
-
-def fc_calculate_ns_metrics(ns_df, lookback_days=30):
-    if ns_df is None or ns_df.empty: return pd.DataFrame(columns=["ITEM_CODE", "NS_ACTIVE_DAYS", "NS_CONSECUTIVE_MAX", "NS_LINES_AVG", "NS_QTY_AVG", "NS_RECENT_DAYS", "NS_TREND", "NS_LOSS_ORDER_AMT_30D", "NS_FILL_RATE_30D", "NS_AFFECTED_PARTIES_30D"])
-    df = ns_df.copy()
-    df["ITEM_CODE"] = df["ITEM_CODE"].astype(str)
-    max_date = df["NS_DATE"].max()
-    cutoff = max_date - pd.Timedelta(days=lookback_days)
-    df = df[df["NS_DATE"] >= cutoff]
-    daily = df.groupby(["ITEM_CODE", "NS_DATE"], as_index=False).agg(LINES=("NS_LINES", "sum"), QTY=("NS_QTY", "sum")).sort_values(["ITEM_CODE", "NS_DATE"])
-    active = daily.groupby("ITEM_CODE")["NS_DATE"].nunique().rename("NS_ACTIVE_DAYS")
-    daily["DIFF"] = daily.groupby("ITEM_CODE")["NS_DATE"].diff().dt.days
-    daily["BRK"] = (daily["DIFF"] != 1).cumsum()
-    consecutive = daily.groupby(["ITEM_CODE", "BRK"]).size().groupby("ITEM_CODE").max().rename("NS_CONSECUTIVE_MAX")
-    avg_lines = daily.groupby("ITEM_CODE")["LINES"].mean().rename("NS_LINES_AVG")
-    avg_qty = daily.groupby("ITEM_CODE")["QTY"].mean().rename("NS_QTY_AVG")
-    recent = daily[daily["NS_DATE"] >= (max_date - pd.Timedelta(days=7))].groupby("ITEM_CODE")["NS_DATE"].nunique().rename("NS_RECENT_DAYS")
-    mid = cutoff + (max_date - cutoff) / 2
-    early = daily[daily["NS_DATE"] <= mid].groupby("ITEM_CODE")["LINES"].mean()
-    late = daily[daily["NS_DATE"] > mid].groupby("ITEM_CODE")["LINES"].mean()
-    trend_df = pd.concat([early.rename("E"), late.rename("L")], axis=1).fillna(0)
-    trend = trend_df.apply(lambda r: "INCREASING" if r["L"] > r["E"] * 1.2 else ("DECREASING" if r["L"] < r["E"] * 0.8 else "STABLE"), axis=1).rename("NS_TREND")
-    loss_30d = df.groupby("ITEM_CODE")["NS_LOSS_ORDER_AMT"].sum().rename("NS_LOSS_ORDER_AMT_30D")
-    fill_rate = df.groupby("ITEM_CODE")["NS_ISS_QTY"].sum().div(df.groupby("ITEM_CODE")["NS_ORD_QTY"].sum().replace(0, np.nan)).fillna(0).rename("NS_FILL_RATE_30D")
-    parties = df.groupby("ITEM_CODE")["NS_PARTY_CODE"].nunique().rename("NS_AFFECTED_PARTIES_30D")
-    return pd.concat([active, consecutive, avg_lines, avg_qty, recent, trend, loss_30d, fill_rate, parties], axis=1).reset_index().fillna(0)
-
-def fc_calculate_order_metrics(df):
-    df = df.copy()
-    df["DAYS_OF_COVER"] = (df["STOCK_QTY"] / (df["DAILY_AVG_QTY"].replace(0, np.nan))).fillna(0)
-    df["SAFETY_PCT"] = 0.20
-    df.loc[df["NS_CONSECUTIVE_MAX"] >= 5, "SAFETY_PCT"] += 0.12
-    df.loc[df["NS_LINES_AVG"] >= 5, "SAFETY_PCT"] += 0.08
-    df.loc[df["NS_TREND"] == "INCREASING", "SAFETY_PCT"] += 0.05
-    df.loc[df["DAYS_OF_COVER"] < 3, "SAFETY_PCT"] += 0.05
-    df["SAFETY_PCT"] = df["SAFETY_PCT"].clip(upper=0.60)
-    df["SAFETY_STOCK"] = df["TRUE_WEEKLY_DEMAND"] * df["SAFETY_PCT"]
-    df["SAFETY_STOCK"] = np.minimum(df["SAFETY_STOCK"], df["TRUE_WEEKLY_DEMAND"])
-    df["FINAL_ORDER_QTY"] = (df["TRUE_WEEKLY_DEMAND"] + df["SAFETY_STOCK"] - df["STOCK_QTY"]).clip(lower=0)
-    df["MIN_ORDER_QTY"] = df["FINAL_ORDER_QTY"] * 0.90
-    df["MAX_ORDER_QTY"] = df["FINAL_ORDER_QTY"] * 1.10
-    return df
-
-def fc_classify_items(df):
-    df = df.copy()
-    df["STOCK_STATUS"] = "OK"
-    df.loc[df["STOCK_QTY"] <= 0, "STOCK_STATUS"] = "CRITICAL"
-    df.loc[df["STOCK_QTY"] > df["TRUE_WEEKLY_DEMAND"] * 4, "STOCK_STATUS"] = "EXCESS"
-    df["ITEM_STATUS"] = "ACTIVE"
-    df.loc[(df["DAILY_AVG_QTY"] == 0) & (df["WEEKLY_AVG_QTY"] == 0) & (df["MONTHLY_AVG_QTY"] == 0), "ITEM_STATUS"] = "DORMANT"
-    reasons = []
-    for _, r in df.iterrows():
-        res = []
-        if r["STOCK_QTY"] <= 0: res.append("Zero stock")
-        if r["NS_CONSECUTIVE_MAX"] >= 5: res.append("High consecutive NS")
-        if r["NS_LINES_AVG"] >= 5: res.append("High shop demand")
-        if r["DAYS_OF_COVER"] < 3: res.append("Low cover")
-        if not res: res.append("Routine replenishment")
-        reasons.append(" + ".join(res))
-    df["ORDER_REASON"] = reasons
-    return df
-
-def fc_init_session_state():
-    if "fc_m" not in st.session_state: st.session_state.fc_m = {}
-    if "fc_w" not in st.session_state: st.session_state.fc_w = {}
-    if "fc_d" not in st.session_state: st.session_state.fc_d = {}
-    if "fc_ns" not in st.session_state: st.session_state.fc_ns = None
-    if "fc_st" not in st.session_state: st.session_state.fc_st = None
-
-def fc_parse_daily_date(filename, d_m, d_y):
-    stem = filename.rsplit(".", 1)[0].lower()
-    m = re.search(r"\b(\d{1,2})(?:st|nd|rd|th)?\s*[- ]?\s*([a-z]{3,9})\b", stem)
-    if m:
-        day, month_tok = int(m.group(1)), m.group(2)
-        month = MONTH_ALIASES.get(re.sub(r"[^a-z]", "", month_tok))
-        if month: 
-            try: return date(d_y, month, day)
-            except: pass
-    m = re.search(r"\b(\d{1,2})[/-](\d{1,2})\b", stem)
-    if m:
-        day, month = int(m.group(1)), int(m.group(2))
-        try: return date(d_y, month, day)
-        except: pass
-    return None
-
-def fc_upload_section():
-    fc_init_session_state()
-    today = st.date_input("Today's Date", value=date.today(), key="fc_today")
-    st.divider()
-    st.subheader("Monthly Sales Upload")
-    months = []
-    curr = today.replace(day=1)
-    for _ in range(6):
-        curr = (curr - timedelta(days=1)).replace(day=1)
-        months.append(curr.strftime("%b-%Y"))
-    sel_m = st.selectbox("Select Month", months, key="fc_msel")
-    m_f = st.file_uploader(f"Upload {sel_m}", type=["xlsx", "xls", "csv"], key=f"mup_{sel_m}")
-    if m_f: st.session_state.fc_m[sel_m] = m_f
-    for k, f in list(st.session_state.fc_m.items()):
-        c1, c2, c3 = st.columns([3, 4, 1])
-        c1.write(k); c2.write(f.name)
-        if c3.button("Remove", key=f"delm_{k}"): del st.session_state.fc_m[k]; st.rerun()
-    st.divider()
-    st.subheader("Weekly Sales Upload")
-    weeks = []
-    last_sun = today - timedelta(days=today.weekday() + 1)
-    for _ in range(6):
-        w_start = last_sun - timedelta(days=6)
-        weeks.append(f"{w_start.strftime('%d %b')} - {last_sun.strftime('%d %b')}")
-        last_sun = w_start - timedelta(days=1)
-    sel_w = st.selectbox("Select Week", weeks, key="fc_wsel")
-    w_f = st.file_uploader(f"Upload {sel_w}", type=["xlsx", "xls", "csv"], key=f"wup_{sel_w}")
-    if w_f: st.session_state.fc_w[sel_w] = w_f
-    for k, f in list(st.session_state.fc_w.items()):
-        c1, c2, c3 = st.columns([3, 4, 1])
-        c1.write(k); c2.write(f.name)
-        if c3.button("Remove", key=f"delw_{k}"): del st.session_state.fc_w[k]; st.rerun()
-    st.divider()
-    st.subheader("Daily Sales Upload (Bulk)")
-    d_files = st.file_uploader("Upload Daily Files", type=["xlsx", "xls", "csv"], accept_multiple_files=True, key="fc_dup")
-    if st.button("Add Daily Files"):
-        if d_files:
-            for f in d_files:
-                p = fc_parse_daily_date(f.name, today.month, today.year)
-                if p: st.session_state.fc_d[p.isoformat()] = f
-            st.rerun()
-    for k, f in sorted(st.session_state.fc_d.items()):
-        c1, c2, c3 = st.columns([3, 4, 1])
-        c1.write(f"{k} ({date.fromisoformat(k).strftime('%a')})"); c2.write(f.name)
-        if c3.button("Remove", key=f"deld_{k}"): del st.session_state.fc_d[k]; st.rerun()
-    st.divider()
-    st.subheader("NS & Stock Upload")
-    st.session_state.fc_ns = st.file_uploader("NS Report", type=["xlsx", "xls", "csv"], key="fc_nsup") or st.session_state.fc_ns
-    st.session_state.fc_st = st.file_uploader("Stock File", type=["xlsx", "xls", "csv"], key="fc_stup") or st.session_state.fc_st
-    return {"stock": st.session_state.fc_st, "monthly": st.session_state.fc_m, "weekly": st.session_state.fc_w, "daily": st.session_state.fc_d, "ns": st.session_state.fc_ns}
-
-def render_standalone_forecast():
-    st.markdown("""<div class="forecast-hero"><div class="forecast-title">Forecast Engine</div></div>""", unsafe_allow_html=True)
-    up = fc_upload_section()
-    if st.button("🚀 Run Forecast", key="runfc"):
-        if not up["stock"]: st.error("Stock file required."); return
-        try:
-            stock_df = fc_extract_stock_columns(fc_read_file(up["stock"]))
-            m_avg = fc_calculate_average(fc_aggregate_sales(up["monthly"]), len(up["monthly"]), "MONTHLY") if up["monthly"] else None
-            w_avg = fc_calculate_average(fc_aggregate_sales(up["weekly"]), len(up["weekly"]), "WEEKLY") if up["weekly"] else None
-            d_avg = fc_calculate_average(fc_aggregate_sales(up["daily"]), len(up["daily"]), "DAILY") if up["daily"] else None
-            sales_df = fc_calculate_weighted_demand(m_avg, w_avg, d_avg)
-            ns_metrics = fc_calculate_ns_metrics(fc_extract_ns_columns(fc_read_file(up["ns"]))) if up["ns"] else None
-            final_df = sales_df.merge(stock_df, on="ITEM_CODE", how="left").merge(ns_metrics, on="ITEM_CODE", how="left") if ns_metrics is not None else sales_df.merge(stock_df, on="ITEM_CODE", how="left")
-            for c in ["ITEM_NAME", "COMPANY", "PACK"]: 
-                final_df[c] = final_df.get(c, "").fillna("").astype(str)
-            final_df = fc_classify_items(fc_calculate_order_metrics(final_df.fillna(0)))
-            final_df["FINAL_ORDER_VALUE"] = final_df["FINAL_ORDER_QTY"] * final_df["COST_RATE"]
-            st.dataframe(final_df[FORECAST_OUTPUT_COLUMNS], use_container_width=True)
-            st.download_button("Download Result", save_df_to_excel_with_format(final_df), file_name="forecast.xlsx")
-        except Exception as e: st.error(f"Error: {e}")
 
 # ------------------ UTILS ------------------
 def load_data_with_progress(uploaded_file):
@@ -2438,7 +2172,10 @@ elif st.session_state.page == "pharma_forecast":
         </style>
     """, unsafe_allow_html=True)
     
-    render_standalone_forecast()
+    if render_forecast_module:
+        render_forecast_module()
+    else:
+        st.error("Forecast Module not found in pharma_forecast_app folder.")
 
 # ------------------ ADMIN LOGIN LOG PAGE ------------------
 elif st.session_state.page == "admin_log":
