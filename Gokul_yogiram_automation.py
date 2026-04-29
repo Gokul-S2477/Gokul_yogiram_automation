@@ -1975,7 +1975,6 @@ elif st.session_state.page == "aging_analysis":
             df_raw.columns = df_raw.columns.str.strip()
             
             # Check for required columns
-            # The user updated that they have 'DAYS' instead of 'Due Days'
             required_cols = ["REL NO.", "PARTYNAME", "SALESMAN", "DAYS", "OSAMT"]
             missing = [c for c in required_cols if c not in df_raw.columns]
             
@@ -1983,7 +1982,10 @@ elif st.session_state.page == "aging_analysis":
                 st.error(f"⚠️ Missing columns: {', '.join(missing)}")
                 st.stop()
             
-            # Data Cleaning
+            # Data Cleaning & Type Casting (Crucial to prevent Arrow error)
+            df_raw["REL NO."] = df_raw["REL NO."].astype(str).str.strip()
+            df_raw["PARTYNAME"] = df_raw["PARTYNAME"].astype(str).str.strip()
+            df_raw["SALESMAN"] = df_raw["SALESMAN"].astype(str).str.strip()
             df_raw["OSAMT"] = pd.to_numeric(df_raw["OSAMT"], errors="coerce").fillna(0)
             df_raw["DAYS"] = pd.to_numeric(df_raw["DAYS"], errors="coerce").fillna(0)
 
@@ -1999,7 +2001,7 @@ elif st.session_state.page == "aging_analysis":
 
             df_raw["Due Bucket"] = df_raw["DAYS"].apply(categorize_days)
             
-            # Create Pivot Table using the new buckets
+            # Create Pivot Table
             pivot_df = pd.pivot_table(
                 df_raw,
                 index=["REL NO.", "PARTYNAME", "SALESMAN"],
@@ -2015,22 +2017,39 @@ elif st.session_state.page == "aging_analysis":
                 "90-120 Days", "120-180 Days", "180-360 Day", "Above 360 Day"
             ]
             
-            # Ensure all buckets exist in columns for a consistent layout
+            # Ensure all buckets exist
             for b in all_buckets:
                 if b not in pivot_df.columns:
                     pivot_df[b] = 0
             
-            # Reorder columns to the requested sequence
             pivot_df = pivot_df[all_buckets]
             
-            # Add Grand Total
+            # Add Grand Total column
             pivot_df["Grand Total"] = pivot_df.sum(axis=1)
             
-            st.write("### 📊 Complete Aging Pivot Table")
-            st.dataframe(pivot_df, use_container_width=True)
+            # --- ADD TOTAL ROW AT THE BOTTOM ---
+            # Calculate column totals
+            col_totals = pivot_df.sum(numeric_only=True).to_frame().T
+            # Create a MultiIndex for the total row to match the pivot_df
+            col_totals.index = pd.MultiIndex.from_tuples([("", "--- GRAND TOTAL ---", "")], names=["REL NO.", "PARTYNAME", "SALESMAN"])
             
-            # Full Download Option
-            full_excel = save_df_to_excel_with_format(pivot_df, sheet_name="Full Aging Report")
+            # Combine
+            final_display_df = pd.concat([pivot_df, col_totals])
+            
+            st.write("### 📊 Complete Aging Pivot Table")
+            
+            # Apply Premium Styling
+            def style_aging_table(styler):
+                styler.format("₹{:,.2f}")
+                # Add background gradient to buckets (excluding the Grand Total label row if possible, but simpler to apply to all)
+                styler.background_gradient(cmap="YlOrRd", subset=all_buckets)
+                styler.set_properties(**{'background-color': '#161b22', 'color': '#ffffff', 'border-color': '#30363d'})
+                return styler
+
+            st.dataframe(final_display_df.style.pipe(style_aging_table), use_container_width=True)
+            
+            # Full Download Option (We download the pivot_df without the styled TOTAL row for clean data usage)
+            full_excel = save_df_to_excel_with_format(final_display_df, sheet_name="Full Aging Report")
             st.download_button(
                 label="📥 Download Full Result (Excel)",
                 data=full_excel,
@@ -2046,31 +2065,48 @@ elif st.session_state.page == "aging_analysis":
             # Get unique salesmen
             salesmen_list = sorted(df_raw["SALESMAN"].dropna().unique())
             
-            selected_salesmen = st.multiselect(
-                "🔍 Search and Select Salesman / Salesmen",
-                options=salesmen_list,
-                placeholder="Choose one or more names..."
+            # Use a single bar for selection
+            # We add a "--- ALL SALESMEN ---" option at the top for quick bulk selection
+            options_with_all = ["--- SELECT ALL SALESMEN ---"] + salesmen_list
+
+            selected_raw = st.multiselect(
+                "🔍 Type to search and select salesmen (Press Enter to add)",
+                options=options_with_all,
+                default=st.session_state.get("selected_salesmen", []),
+                placeholder="Search names (e.g. 'Gokul')..."
             )
             
+            # Logic to handle "Select All"
+            if "--- SELECT ALL SALESMEN ---" in selected_raw:
+                selected_salesmen = salesmen_list
+            else:
+                selected_salesmen = selected_raw
+            
+            # Sync session state
+            st.session_state.selected_salesmen = selected_salesmen
+            
             if selected_salesmen:
-                # Filter the pivot table
-                # Since SALESMAN is part of the index (level 2), we use .xs or .query
-                # Using .reset_index() temporarily for easier filtering
+                # Filter the pivot table (using the original pivot_df before the total row was added)
                 filtered_pivot = pivot_df.reset_index()
                 filtered_pivot = filtered_pivot[filtered_pivot["SALESMAN"].isin(selected_salesmen)]
                 
-                # Set index back to match original format
+                # Set index back
                 filtered_pivot = filtered_pivot.set_index(["REL NO.", "PARTYNAME", "SALESMAN"])
                 
+                # Add Total Row for this filtered set
+                f_col_totals = filtered_pivot.sum(numeric_only=True).to_frame().T
+                f_col_totals.index = pd.MultiIndex.from_tuples([("", "--- FILTERED TOTAL ---", "")], names=["REL NO.", "PARTYNAME", "SALESMAN"])
+                filtered_display_df = pd.concat([filtered_pivot, f_col_totals])
+                
                 st.write(f"### 📋 Preview for Selected Salesmen ({len(selected_salesmen)})")
-                st.dataframe(filtered_pivot, use_container_width=True)
+                st.dataframe(filtered_display_df.style.pipe(style_aging_table), use_container_width=True)
                 
                 # File Naming Logic
-                salesmen_str = "_".join(selected_salesmen)[:50] # Truncate if too many
+                salesmen_str = "_".join(selected_salesmen)[:50] 
                 today_str = datetime.now().strftime("%Y-%m-%d")
                 filtered_filename = f"dues list for ({salesmen_str}) {today_str}.xlsx"
                 
-                filtered_excel = save_df_to_excel_with_format(filtered_pivot, sheet_name="Selective Dues")
+                filtered_excel = save_df_to_excel_with_format(filtered_display_df, sheet_name="Selective Dues")
                 st.download_button(
                     label=f"📥 Download Dues List for Selected",
                     data=filtered_excel,
