@@ -3,6 +3,8 @@ from io import BytesIO
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
 
 from ui.upload_ui import upload_section
 from core.loader import (
@@ -297,74 +299,167 @@ def _to_excel(recommendation_df, summary_bundle):
     return buffer.getvalue()
 
 
-def _render_bar_chart(df, label_col, value_col, title):
-    st.markdown(f"**{title}**")
-    if df.empty:
-        st.info("No data available.")
-        return
-    chart_df = df.set_index(label_col)[[value_col]]
-    st.bar_chart(chart_df, use_container_width=True)
-
+def render_glass_metric(label, value, delta=None, icon="📊", color="#00f2ff"):
+    delta_html = ""
+    if delta:
+        d_color = "#00ff88" if not str(delta).startswith("-") else "#ff4b4b"
+        delta_html = f'<div style="color: {d_color}; font-size: 0.85rem; font-weight: 600; margin-top: 4px;">{delta}</div>'
+    
+    st.markdown(f"""
+        <div class="glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <div style="color: rgba(255,255,255,0.6); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">{label}</div>
+                    <div style="color: white; font-size: 1.6rem; font-weight: 700; margin-top: 8px; font-family: 'Inter', sans-serif;">{value}</div>
+                    {delta_html}
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; font-size: 1.2rem;">{icon}</div>
+            </div>
+            <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, transparent, {color}, transparent); opacity: 0.5;"></div>
+        </div>
+    """, unsafe_allow_html=True)
 
 def _render_summary_dashboard(bundle):
-    st.header("Summary and Insights")
-    st.markdown("**Executive Summary**")
-    for line in bundle["summary_lines"]:
-        st.write(f"- {line}")
+    st.markdown("""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            height: 100%;
+            animation: fadeInScale 0.6s ease-out forwards;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(0, 242, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        
+        .section-header {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #fff 0%, #00f2ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
+    st.markdown('<div class="section-header">📊 Strategic Insights</div>', unsafe_allow_html=True)
+    
     kpis = bundle["kpis"]
-    kpi_row_1 = st.columns(4)
-    kpi_row_2 = st.columns(4)
+    
+    # KPI Grid 1
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: render_glass_metric("Market Analysis", _fmt_number(kpis["total_items"]), icon="🔍", color="#00f2ff")
+    with c2: render_glass_metric("Procurement Need", _fmt_number(kpis["items_to_order"]), icon="📦", color="#ffcc00")
+    with c3: render_glass_metric("Critical Risk", _fmt_number(kpis["critical_stock_items"]), icon="⚠️", color="#ff4b4b")
+    with c4: render_glass_metric("Supply Efficiency", f"{_fmt_number(kpis['avg_fill_rate_30d'] * 100, 1)}%", icon="⚡", color="#00ff88")
 
-    kpi_row_1[0].metric("Total Items", _fmt_number(kpis["total_items"]))
-    kpi_row_1[1].metric("Items To Order", _fmt_number(kpis["items_to_order"]))
-    kpi_row_1[2].metric("Critical Stock", _fmt_number(kpis["critical_stock_items"]))
-    kpi_row_1[3].metric("Low Cover (<3D)", _fmt_number(kpis["low_cover_items"]))
+    # KPI Grid 2
+    st.markdown('<div style="margin-top: 1.5rem;"></div>', unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: render_glass_metric("Total Order Qty", _fmt_number(kpis["total_order_qty"], 0), icon="🔢", color="#b066ff")
+    with c2: render_glass_metric("Investment Req", _fmt_amount(kpis["total_order_value"]), icon="💰", color="#00ff88")
+    with c3: render_glass_metric("Avg Stock Cover", f"{_fmt_number(kpis['avg_days_cover'], 1)} Days", icon="📅", color="#00f2ff")
+    with c4: 
+        potential_lost = bundle["top_items_ns_loss"]["NS_LOSS_ORDER_AMT_30D"].sum()
+        render_glass_metric("NS Loss Risk", _fmt_amount(potential_lost), icon="📉", color="#ff4b4b")
 
-    kpi_row_2[0].metric("Order Qty", _fmt_number(kpis["total_order_qty"], 2))
-    kpi_row_2[1].metric("Order Value", _fmt_amount(kpis["total_order_value"]))
-    kpi_row_2[2].metric("Avg Cover Days", _fmt_number(kpis["avg_days_cover"], 2))
-    kpi_row_2[3].metric("Avg Fill Rate 30D", f"{_fmt_number(kpis['avg_fill_rate_30d'] * 100, 2)}%")
-
-    st.subheader("Charts")
-    r1c1, r1c2 = st.columns(2)
+    st.markdown('<div class="section-header" style="margin-top: 3rem;">📈 Visual Intelligence</div>', unsafe_allow_html=True)
+    
+    # Row 1: TreeMap and Donut
+    r1c1, r1c2 = st.columns([2, 1])
+    
     with r1c1:
-        _render_bar_chart(
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        fig = px.treemap(
             bundle["top_companies_value"],
-            "COMPANY",
-            "ORDER_VALUE",
-            "Top Companies To Order By Value",
+            path=["COMPANY"],
+            values="ORDER_VALUE",
+            title="Order Value Distribution by Company",
+            color="ORDER_VALUE",
+            color_continuous_scale="Viridis",
+            template="plotly_dark"
         )
+        fig.update_layout(margin=dict(t=50, l=10, r=10, b=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
     with r1c2:
-        _render_bar_chart(
-            bundle["top_companies_qty"],
-            "COMPANY",
-            "ORDER_QTY",
-            "Top Companies To Order By Quantity",
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        status_df = bundle["stock_status_dist"]
+        fig = px.pie(
+            status_df, 
+            values="COUNT", 
+            names="STOCK_STATUS", 
+            hole=0.6,
+            title="Inventory Health",
+            color_discrete_sequence=px.colors.qualitative.Pastel,
+            template="plotly_dark"
         )
+        fig.update_layout(margin=dict(t=50, l=10, r=10, b=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
+    # Row 2: Animated Horizontal Bar Charts
+    st.markdown('<div style="margin-top: 1.5rem;"></div>', unsafe_allow_html=True)
     r2c1, r2c2 = st.columns(2)
+    
     with r2c1:
-        _render_bar_chart(
-            bundle["stock_status_dist"],
-            "STOCK_STATUS",
-            "COUNT",
-            "Stock Status Distribution",
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        items_df = bundle["top_items_order_value"].head(10).sort_values("FINAL_ORDER_VALUE", ascending=True)
+        fig = px.bar(
+            items_df,
+            x="FINAL_ORDER_VALUE",
+            y="ITEM_NAME",
+            orientation='h',
+            title="Top Priority Items (By Value)",
+            text_auto='.2s',
+            template="plotly_dark",
+            color="FINAL_ORDER_VALUE",
+            color_continuous_scale="Blues"
         )
-    with r2c2:
-        _render_bar_chart(
-            bundle["item_status_dist"],
-            "ITEM_STATUS",
-            "COUNT",
-            "Item Status Distribution",
-        )
+        fig.update_layout(margin=dict(t=50, l=10, r=10, b=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    _render_bar_chart(
-        bundle["cover_bucket_dist"],
-        "COVER_BUCKET",
-        "COUNT",
-        "Days Of Cover Bucket Distribution",
-    )
+    with r2c2:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        ns_df = bundle["top_items_ns_loss"].head(10).sort_values("NS_LOSS_ORDER_AMT_30D", ascending=True)
+        fig = px.bar(
+            ns_df,
+            x="NS_LOSS_ORDER_AMT_30D",
+            y="ITEM_NAME",
+            orientation='h',
+            title="Supply Risk Exposure (NS Loss)",
+            text_auto='.2s',
+            template="plotly_dark",
+            color="NS_LOSS_ORDER_AMT_30D",
+            color_continuous_scale="Reds"
+        )
+        fig.update_layout(margin=dict(t=50, l=10, r=10, b=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_forecast_module():
