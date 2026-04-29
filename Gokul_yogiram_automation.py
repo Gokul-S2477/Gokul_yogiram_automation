@@ -1,4 +1,5 @@
 import streamlit as st
+# Version: 2.1.0-standalone
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
