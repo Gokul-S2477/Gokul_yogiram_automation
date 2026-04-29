@@ -226,7 +226,11 @@ def fc_upload_section():
     today = st.date_input("Today's Date", value=date.today(), key="fc_today")
     st.divider()
     st.subheader("Monthly Sales Upload")
-    months = [((today.replace(day=1) - timedelta(days=1)).replace(day=1) - timedelta(days=30*i)).strftime("%b-%Y") for i in range(6)]
+    months = []
+    curr = today.replace(day=1)
+    for _ in range(6):
+        curr = (curr - timedelta(days=1)).replace(day=1)
+        months.append(curr.strftime("%b-%Y"))
     sel_m = st.selectbox("Select Month", months, key="fc_msel")
     m_f = st.file_uploader(f"Upload {sel_m}", type=["xlsx", "xls", "csv"], key=f"mup_{sel_m}")
     if m_f: st.session_state.fc_m[sel_m] = m_f
