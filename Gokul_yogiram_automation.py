@@ -240,7 +240,12 @@ def fc_upload_section():
         if c3.button("Remove", key=f"delm_{k}"): del st.session_state.fc_m[k]; st.rerun()
     st.divider()
     st.subheader("Weekly Sales Upload")
-    weeks = [(today - timedelta(days=today.weekday()+1+7*i)).strftime("%d %b") for i in range(6)]
+    weeks = []
+    last_sun = today - timedelta(days=today.weekday() + 1)
+    for _ in range(6):
+        w_start = last_sun - timedelta(days=6)
+        weeks.append(f"{w_start.strftime('%d %b')} - {last_sun.strftime('%d %b')}")
+        last_sun = w_start - timedelta(days=1)
     sel_w = st.selectbox("Select Week", weeks, key="fc_wsel")
     w_f = st.file_uploader(f"Upload {sel_w}", type=["xlsx", "xls", "csv"], key=f"wup_{sel_w}")
     if w_f: st.session_state.fc_w[sel_w] = w_f
