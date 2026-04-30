@@ -233,55 +233,52 @@ footer    { visibility: hidden; }
 /* ============ DASHBOARD GRID BUTTONS ============ */
 .main .stButton > button {
     width: 100% !important;
-    height: 130px !important;           /* FIXED height — all cards identical */
-    min-height: unset !important;
-    max-height: 130px !important;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
     display: flex !important;
-    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    background: rgba(255,255,255,0.035) !important;
-    border: 1px solid rgba(255,255,255,0.08) !important;
-    border-radius: 22px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 14px !important;
     color: #e2e8f0 !important;
     font-family: 'Plus Jakarta Sans', sans-serif !important;
     font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    letter-spacing: 0.02em !important;
-    transition: all 0.35s cubic-bezier(0.165,0.84,0.44,1) !important;
-    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 24px rgba(0,0,0,0.25) !important;
-    backdrop-filter: blur(12px) !important;
-    padding: 0 1rem !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    text-align: center !important;
-    line-height: 1.4 !important;
-    overflow: hidden !important;
+    font-size: 1.05rem !important;
+    transition: all 0.3s ease-in-out !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    padding: 0 1.5rem !important;
+    white-space: nowrap !important;
 }
 .main .stButton > button:hover {
-    background: rgba(255,255,255,0.07) !important;
-    transform: translateY(-5px) scale(1.015) !important;
-    color: #fff !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    transform: translateY(-3px) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2) !important;
 }
 /* Per-column neon glow on hover */
 div[data-testid="column"]:nth-child(1) .main .stButton > button:hover {
     border-color: var(--primary) !important;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(0,242,255,0.3) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(0,242,255,0.4) !important;
     color: var(--primary) !important;
 }
 div[data-testid="column"]:nth-child(2) .main .stButton > button:hover {
     border-color: var(--secondary) !important;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(57,255,20,0.3) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(57,255,20,0.4) !important;
     color: var(--secondary) !important;
 }
 div[data-testid="column"]:nth-child(3) .main .stButton > button:hover {
     border-color: var(--accent) !important;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(255,0,234,0.3) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(255,0,234,0.4) !important;
     color: var(--accent) !important;
 }
 div[data-testid="column"]:nth-child(4) .main .stButton > button:hover {
     border-color: var(--gold) !important;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 0 20px rgba(255,215,0,0.3) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(255,215,0,0.4) !important;
     color: var(--gold) !important;
 }
 
@@ -544,17 +541,17 @@ if st.session_state.page == "home":
 
     t1, t2, t3, t4 = st.columns(4, gap="medium")
     with t1:
-        if st.button("ℹ️  Info Guide",       key="btn_info"):   go_info()
-        if st.button("📈  Pharma Forecast",  key="btn_fc"):     go_forecast()
+        if st.button("ℹ️  Info Guide",       key="btn_info", use_container_width=True):   go_info()
+        if st.button("📈  Pharma Forecast",  key="btn_fc", use_container_width=True):     go_forecast()
     with t2:
-        if st.button("🛒  Apollo Check",    key="btn_apollo"): go_apollo()
-        if st.button("📦  Pending Indents", key="btn_pi"):     go_pending_indents()
+        if st.button("🛒  Apollo Check",    key="btn_apollo", use_container_width=True): go_apollo()
+        if st.button("📦  Pending Indents", key="btn_pi", use_container_width=True):     go_pending_indents()
     with t3:
-        if st.button("🔒  Order Lock",      key="btn_ol"):     go_pending_lock()
-        if st.button("⏳  Due List",              key="btn_due"):    go_aging_analysis()
+        if st.button("🔒  Order Lock",      key="btn_ol", use_container_width=True):     go_pending_lock()
+        if st.button("⏳  Due List",              key="btn_due", use_container_width=True):    go_aging_analysis()
     with t4:
-        if st.button("🧾  NA Finder",       key="btn_na"):     go_na_finder()
-        if st.button("💰  Sales Portal",   key="btn_sales"):  go_sales()
+        if st.button("🧾  NA Finder",       key="btn_na", use_container_width=True):     go_na_finder()
+        if st.button("💰  Sales Portal",   key="btn_sales", use_container_width=True):  go_sales()
 
     # Additional Modules section header
     st.markdown("""
@@ -569,15 +566,15 @@ if st.session_state.page == "home":
 
     a1, a2, a3, a4 = st.columns(4, gap="medium")
     with a1:
-        if st.button("📂  Claim Portal",      key="btn_claim"):   go_claim()
-        if st.button("📊  Max Min Portal",    key="btn_mm"):      go_maxmin()
+        if st.button("📂  Claim Portal",      key="btn_claim", use_container_width=True):   go_claim()
+        if st.button("📊  Max Min Portal",    key="btn_mm", use_container_width=True):      go_maxmin()
     with a2:
-        if st.button("📊  DB Age Analysis",   key="btn_db"):      st.session_state.page = "db_age"
+        if st.button("📊  DB Age Analysis",   key="btn_db", use_container_width=True):      st.session_state.page = "db_age"
     with a3:
-        if st.button("💹  Contribution",      key="btn_contrib"): st.session_state.page = "sales_contribution"
-        if st.button("🧠  AI Analyst",        key="btn_ai"):      st.session_state.page = "ai_data_assistant"
+        if st.button("💹  Contribution",      key="btn_contrib", use_container_width=True): st.session_state.page = "sales_contribution"
+        if st.button("🧠  AI Analyst",        key="btn_ai", use_container_width=True):      st.session_state.page = "ai_data_assistant"
     with a4:
-        if st.button("🚚  Courier Map",     key="btn_cm"):     go_courier_mapper()
+        if st.button("🚚  Courier Map",     key="btn_cm", use_container_width=True):     go_courier_mapper()
 
     if username == "admin":
         st.markdown("""
@@ -591,7 +588,7 @@ if st.session_state.page == "home":
         """, unsafe_allow_html=True)
         adm1, adm2, adm3, adm4 = st.columns(4, gap="medium")
         with adm1:
-            if st.button("📝  Login Activity", key="btn_admin"): go_admin_log()
+            if st.button("📝  Login Activity", key="btn_admin", use_container_width=True): go_admin_log()
 
 
 
