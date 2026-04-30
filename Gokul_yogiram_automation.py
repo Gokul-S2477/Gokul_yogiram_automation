@@ -233,53 +233,58 @@ footer    { visibility: hidden; }
 /* ============ DASHBOARD GRID BUTTONS ============ */
 .main .stButton > button {
     width: 100% !important;
-    height: 80px !important;
-    min-height: 80px !important;
-    max-height: 80px !important;
+    height: 90px !important;
+    min-height: 90px !important;
+    max-height: 90px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 14px !important;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 18px !important;
     color: #e2e8f0 !important;
     font-family: 'Plus Jakarta Sans', sans-serif !important;
     font-weight: 600 !important;
     font-size: 1.05rem !important;
-    transition: all 0.3s ease-in-out !important;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1) !important;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(20px) saturate(1.2) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
     padding: 0 1.5rem !important;
     white-space: nowrap !important;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
 }
 .main .stButton > button:hover {
-    background: rgba(255, 255, 255, 0.15) !important;
-    transform: translateY(-3px) !important;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
+    transform: translateY(-4px) !important;
     color: #ffffff !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 12px 30px rgba(0, 0, 0, 0.5) !important;
 }
 /* Per-column neon glow on hover */
 div[data-testid="column"]:nth-child(1) .main .stButton > button:hover {
-    border-color: var(--primary) !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(0,242,255,0.4) !important;
-    color: var(--primary) !important;
+    border-color: rgba(0, 242, 255, 0.4) !important;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(0,242,255,0.3) !important;
+    color: #fff !important;
+    text-shadow: 0 0 12px rgba(0, 242, 255, 0.6) !important;
 }
 div[data-testid="column"]:nth-child(2) .main .stButton > button:hover {
-    border-color: var(--secondary) !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(57,255,20,0.4) !important;
-    color: var(--secondary) !important;
+    border-color: rgba(57, 255, 20, 0.4) !important;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(57,255,20,0.3) !important;
+    color: #fff !important;
+    text-shadow: 0 0 12px rgba(57, 255, 20, 0.6) !important;
 }
 div[data-testid="column"]:nth-child(3) .main .stButton > button:hover {
-    border-color: var(--accent) !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(255,0,234,0.4) !important;
-    color: var(--accent) !important;
+    border-color: rgba(255, 0, 234, 0.4) !important;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(255,0,234,0.3) !important;
+    color: #fff !important;
+    text-shadow: 0 0 12px rgba(255, 0, 234, 0.6) !important;
 }
 div[data-testid="column"]:nth-child(4) .main .stButton > button:hover {
-    border-color: var(--gold) !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 20px rgba(255,215,0,0.4) !important;
-    color: var(--gold) !important;
+    border-color: rgba(255, 215, 0, 0.4) !important;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(255,215,0,0.3) !important;
+    color: #fff !important;
+    text-shadow: 0 0 12px rgba(255, 215, 0, 0.6) !important;
 }
 
 /* ============ SECTION LABELS ============ */
