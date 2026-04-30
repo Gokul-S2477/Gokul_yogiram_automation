@@ -499,8 +499,7 @@ def go_na_finder():
     st.session_state.page = "na_finder"
 def go_info():
     st.session_state.page = "info"
-def go_payment_due():
-    st.session_state.page = "payment_due"
+
 def go_courier_mapper():
     st.session_state.page = "courier_mapper"
 def go_pending_lock():
@@ -574,7 +573,6 @@ if st.session_state.page == "home":
         if st.button("📊  Max Min Portal",    key="btn_mm"):      go_maxmin()
     with a2:
         if st.button("📊  DB Age Analysis",   key="btn_db"):      st.session_state.page = "db_age"
-        if st.button("💳  Payment Tracker",   key="btn_pay"):     go_payment_due()
     with a3:
         if st.button("💹  Contribution",      key="btn_contrib"): st.session_state.page = "sales_contribution"
         if st.button("🧠  AI Analyst",        key="btn_ai"):      st.session_state.page = "ai_data_assistant"
@@ -655,11 +653,6 @@ elif st.session_state.page == "info":
     - Calculates the "Age" of supplier claims based on a reference date.
     - Buckets claims into 0-30, 31-60, 61-90... Above 360 days.
     - Generates a Supplier-wise pivot table of pending amounts.
-
-    ### 💳 Payment Due Tracker
-    - Uses `vendor_master.csv` to map payment terms (days).
-    - Compares bill dates with terms to find exact Due Dates.
-    - Filters by Today, Specific Date, or Range to see exactly how much is due to which vendors.
 
     ### 💹 Sales Contribution Analyzer
     - Performs Pareto analysis (80/20 rule) on sales data.
@@ -814,139 +807,6 @@ STOP execution after warning
                 st.error("⚠️ AI execution error")
                 st.exception(e)
 
-
-# ------------------ PAYMENT DUE TRACKER ------------------
-elif st.session_state.page == "payment_due":
-
-    import pandas as pd
-    import streamlit as st
-    import os
-    from datetime import datetime, timedelta
-    from io import BytesIO
-
-    st.title("💳 Payment Due Tracker")
-
-    if st.button("🏠 Back to Home"):
-        go_home()
-
-    # ------------------ Load Vendor Master ------------------
-    try:
-        vendor_master = pd.read_csv("vendor_master.csv")
-        required_vendor_cols = ["Vendor Code", "branch", "Name", "PAN", "Mobile", "Email", "Payment Term"]
-        for col in required_vendor_cols:
-            if col not in vendor_master.columns:
-                st.error(f"⚠️ Missing column '{col}' in vendor_master.csv")
-                st.stop()
-    except FileNotFoundError:
-        st.error("⚠️ 'vendor_master.csv' file not found in directory!")
-        st.stop()
-
-    # ------------------ Branch Selection ------------------
-    branch_list = sorted(vendor_master["branch"].dropna().unique())
-    branch = st.selectbox("🏢 Select Branch", branch_list)
-
-    # ------------------ Upload Bill File ------------------
-    uploaded_file = st.file_uploader("📤 Upload Bill Statement (CSV or Excel)", type=["csv", "xlsx"])
-
-    if uploaded_file:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-
-        # Clean column names
-        df.columns = df.columns.str.strip().str.lower()
-        vendor_master.columns = vendor_master.columns.str.strip().str.lower()
-
-        required_cols = ["party code", "bill. date", "bill amt.", "party name"]
-        for col in required_cols:
-            if col not in df.columns:
-                st.error(f"⚠️ Uploaded file must include column '{col}'")
-                st.stop()
-
-        # ------------------ Merge Data ------------------
-        merged = pd.merge(df, vendor_master, how="left",
-                          left_on="party code", right_on="vendor code")
-
-        merged = merged[merged["branch"] == branch]
-
-        merged["bill. date"] = pd.to_datetime(merged["bill. date"], errors="coerce")
-        merged["payment term"] = pd.to_numeric(merged["payment term"], errors="coerce").fillna(0)
-        merged["payment due date"] = merged["bill. date"] + pd.to_timedelta(merged["payment term"], unit="D")
-
-        # ------------------ Date Filter Options ------------------
-        today = datetime.today().date()
-        st.subheader("📅 Date Filter Options")
-        filter_type = st.radio("Select Filter Type:", ["Today", "Specific Date", "Date Range"], horizontal=True)
-
-        if filter_type == "Today":
-            filtered_df = merged[merged["payment due date"].dt.date == today]
-            date_text = f"on {today}"
-
-        elif filter_type == "Specific Date":
-            selected_date = st.date_input("📆 Choose Date", today)
-            filtered_df = merged[merged["payment due date"].dt.date == selected_date]
-            date_text = f"on {selected_date}"
-
-        else:  # Date Range
-            col1, col2 = st.columns(2)
-            start_date = col1.date_input("📆 From Date", today - timedelta(days=7))
-            end_date = col2.date_input("📆 To Date", today)
-            mask = (merged["payment due date"].dt.date >= start_date) & (merged["payment due date"].dt.date <= end_date)
-            filtered_df = merged[mask]
-            date_text = f"from {start_date} to {end_date}"
-
-        # ------------------ KPIs ------------------
-        total_due = filtered_df["bill amt."].sum()
-        total_bills = len(filtered_df)
-        total_vendors = filtered_df["party name"].nunique()
-
-        st.markdown("### 📊 Summary KPIs")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("💰 Total Due Amount", f"₹{total_due:,.2f}")
-        c2.metric("📦 Total Bills", total_bills)
-        c3.metric("🏢 Vendors with Dues", total_vendors)
-
-        # ------------------ COMPANY-WISE SUMMARY ------------------
-        company_summary = (
-            filtered_df.groupby(["party code", "party name"], as_index=False)["bill amt."]
-            .sum()
-            .rename(columns={"bill amt.": "Total Amount Due"})
-        )
-
-        st.markdown(f"### 🧾 Company-wise Payment Due {date_text}")
-        st.dataframe(company_summary, use_container_width=True)
-
-        # ------------------ DETAILED DUE LIST ------------------
-        show_cols = [
-            "party code", "party name", "bill. date", "bill amt.",
-            "payment term", "payment due date", "name", "mobile", "email"
-        ]
-
-        detailed_df = filtered_df[show_cols].sort_values("payment due date")
-
-        st.markdown(f"### 📋 Detailed Bill-wise Dues {date_text}")
-        st.dataframe(detailed_df, use_container_width=True)
-
-        # ------------------ DOWNLOAD FUNCTIONS ------------------
-
-
-        st.download_button(
-            "📥 Download Company Summary (Excel)",
-            data=save_df_to_excel_with_format(company_summary, sheet_name="Company Summary", index=False),
-            file_name=f"Company_Summary_{datetime.now().date()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-        st.download_button(
-            "📥 Download Detailed Dues (Excel)",
-            data=save_df_to_excel_with_format(detailed_df, sheet_name="Detailed Dues", index=False),
-            file_name=f"Detailed_Dues_{datetime.now().date()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-    else:
-        st.info("📂 Please upload the branch statement file to start tracking payment dues.")
 
 # ------------------ CLAIM PORTAL ------------------
 elif st.session_state.page == "claim":
