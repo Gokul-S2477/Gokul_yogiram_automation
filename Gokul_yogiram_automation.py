@@ -135,24 +135,25 @@ st.markdown("""
 
 /* ============ ROOT VARIABLES ============ */
 :root {
-    --primary: #00f2ff;
-    --secondary: #39ff14;
-    --accent:   #ff00ea;
-    --gold:     #ffd700;
-    --bg:       #05070c;
-    --surface:  rgba(255,255,255,0.04);
-    --border:   rgba(255,255,255,0.09);
-    --text:     #e2e8f0;
-    --muted:    rgba(226,232,240,0.5);
+    --primary: #4f46e5;
+    --primary-glow: rgba(79, 70, 229, 0.4);
+    --secondary: #06b6d4;
+    --accent: #f43f5e;
+    --gold: #f59e0b;
+    --bg: #030305;
+    --surface: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.08);
+    --text: #f8fafc;
+    --muted: #94a3b8;
 }
 
 /* ============ APP BACKGROUND ============ */
 .stApp {
     background: var(--bg) !important;
-    background-image:
-        radial-gradient(ellipse at 0% 0%,   rgba(0,242,255,0.12) 0, transparent 55%),
-        radial-gradient(ellipse at 100% 0%,  rgba(57,255,20,0.10) 0, transparent 55%),
-        radial-gradient(ellipse at 50% 100%, rgba(255,0,234,0.08) 0, transparent 55%) !important;
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.08), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.08), transparent 25%),
+        radial-gradient(circle at 50% 100%, rgba(244, 63, 94, 0.06), transparent 30%) !important;
     background-attachment: fixed !important;
 }
 
@@ -233,58 +234,58 @@ footer    { visibility: hidden; }
 /* ============ DASHBOARD GRID BUTTONS ============ */
 .main .stButton > button {
     width: 100% !important;
-    height: 90px !important;
-    min-height: 90px !important;
-    max-height: 90px !important;
+    height: 85px !important;
+    min-height: 85px !important;
+    max-height: 85px !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: center !important;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    border-radius: 18px !important;
-    color: #e2e8f0 !important;
+    justify-content: flex-start !important; /* Left alignment for modern card look */
+    background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.15) !important; /* Top highlight */
+    border-radius: 16px !important;
+    color: #f1f5f9 !important;
     font-family: 'Plus Jakarta Sans', sans-serif !important;
     font-weight: 600 !important;
     font-size: 1.05rem !important;
-    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1) !important;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 8px 24px rgba(0, 0, 0, 0.3) !important;
-    backdrop-filter: blur(20px) saturate(1.2) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(1.2) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
     padding: 0 1.5rem !important;
     white-space: nowrap !important;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+    text-shadow: none !important;
+}
+.main .stButton > button > div > p {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 0 !important;
 }
 .main .stButton > button:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
-    transform: translateY(-4px) !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%) !important;
+    transform: translateY(-3px) scale(1.01) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.2) !important;
     color: #ffffff !important;
-    border-color: rgba(255, 255, 255, 0.15) !important;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 12px 30px rgba(0, 0, 0, 0.5) !important;
 }
-/* Per-column neon glow on hover */
+/* Premium subtle glows per column instead of harsh neon */
 div[data-testid="column"]:nth-child(1) .main .stButton > button:hover {
-    border-color: rgba(0, 242, 255, 0.4) !important;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(0,242,255,0.3) !important;
-    color: #fff !important;
-    text-shadow: 0 0 12px rgba(0, 242, 255, 0.6) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 0 20px rgba(79, 70, 229, 0.4), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    border-color: rgba(79, 70, 229, 0.5) !important;
 }
 div[data-testid="column"]:nth-child(2) .main .stButton > button:hover {
-    border-color: rgba(57, 255, 20, 0.4) !important;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(57,255,20,0.3) !important;
-    color: #fff !important;
-    text-shadow: 0 0 12px rgba(57, 255, 20, 0.6) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 0 20px rgba(6, 182, 212, 0.3), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    border-color: rgba(6, 182, 212, 0.5) !important;
 }
 div[data-testid="column"]:nth-child(3) .main .stButton > button:hover {
-    border-color: rgba(255, 0, 234, 0.4) !important;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(255,0,234,0.3) !important;
-    color: #fff !important;
-    text-shadow: 0 0 12px rgba(255, 0, 234, 0.6) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 0 20px rgba(244, 63, 94, 0.3), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    border-color: rgba(244, 63, 94, 0.5) !important;
 }
 div[data-testid="column"]:nth-child(4) .main .stButton > button:hover {
-    border-color: rgba(255, 215, 0, 0.4) !important;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(255,215,0,0.3) !important;
-    color: #fff !important;
-    text-shadow: 0 0 12px rgba(255, 215, 0, 0.6) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 0 20px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    border-color: rgba(245, 158, 11, 0.5) !important;
 }
 
 /* ============ SECTION LABELS ============ */
@@ -515,18 +516,22 @@ def go_forecast():
 if st.session_state.page == "home":
 
     st.markdown("""
-        <div style="text-align:center; padding:2rem 0 0.25rem 0;">
-            <div style="display:inline-block; background:rgba(0,242,255,0.07);
-                        border:1px solid rgba(0,242,255,0.2); border-radius:99px;
-                        padding:5px 22px; font-size:0.7rem; font-weight:800;
-                        letter-spacing:0.35em; color:#00f2ff; text-transform:uppercase;
-                        margin-bottom:1.4rem;">⚡ COMMAND CENTER</div>
-            <h1 style="font-size:clamp(2rem,5vw,3.4rem); font-weight:800; letter-spacing:-2px;
-                       background:linear-gradient(135deg,#fff 30%,#64748b 100%);
+        <div style="text-align:center; padding:3rem 0 1rem 0;">
+            <div style="display:inline-block; background:linear-gradient(90deg, rgba(79, 70, 229, 0.15), rgba(6, 182, 212, 0.15));
+                        border:1px solid rgba(255,255,255,0.1); border-radius:99px;
+                        padding:6px 24px; font-size:0.75rem; font-weight:800;
+                        letter-spacing:0.35em; color:#fff; text-transform:uppercase;
+                        margin-bottom:1.5rem; box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);">
+                ⚡ COMMAND CENTER
+            </div>
+            <h1 style="font-size:clamp(2.5rem,6vw,4rem); font-weight:800; letter-spacing:-2px;
+                       background:linear-gradient(135deg,#ffffff 0%,#a5b4fc 100%);
                        -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-                       margin:0 0 0.5rem 0; line-height:1.1;">Yogiram Automation</h1>
-            <p style="color:rgba(255,255,255,0.35); font-size:1rem; margin:0;">
-                Strategic Business Intelligence &amp; Operations Portal
+                       margin:0 0 0.5rem 0; line-height:1.1; text-shadow: 0 4px 24px rgba(0,0,0,0.4);">
+                Yogiram Automation
+            </h1>
+            <p style="color:#94a3b8; font-size:1.1rem; font-weight:400; margin:0; letter-spacing:0.02em;">
+                Strategic Business Intelligence & Operations Portal
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -535,12 +540,12 @@ if st.session_state.page == "home":
 
     # Frequently Used section header
     st.markdown("""
-        <div style="display:flex;align-items:center;gap:14px;margin:2.5rem 0 1.4rem 0;">
-            <span style="font-size:0.7rem;font-weight:800;letter-spacing:0.38em;
-                         text-transform:uppercase;color:#00f2ff;white-space:nowrap;">
-                &#9889; Frequently Used
+        <div style="display:flex;align-items:center;gap:18px;margin:3.5rem 0 2rem 0;">
+            <span style="font-size:0.75rem;font-weight:800;letter-spacing:0.4em;
+                         text-transform:uppercase;color:#e2e8f0;white-space:nowrap;">
+                <span style="color:#06b6d4;">●</span> FREQUENTLY USED
             </span>
-            <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(0,242,255,0.4),transparent);"></div>
+            <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,0.1),transparent);"></div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -560,12 +565,12 @@ if st.session_state.page == "home":
 
     # Additional Modules section header
     st.markdown("""
-        <div style="display:flex;align-items:center;gap:14px;margin:2.5rem 0 1.4rem 0;">
-            <span style="font-size:0.7rem;font-weight:800;letter-spacing:0.38em;
-                         text-transform:uppercase;color:#bc8cff;white-space:nowrap;">
-                🛠 Additional Modules
+        <div style="display:flex;align-items:center;gap:18px;margin:3.5rem 0 2rem 0;">
+            <span style="font-size:0.75rem;font-weight:800;letter-spacing:0.4em;
+                         text-transform:uppercase;color:#e2e8f0;white-space:nowrap;">
+                <span style="color:#f43f5e;">●</span> ADDITIONAL MODULES
             </span>
-            <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(188,140,255,0.4),transparent);"></div>
+            <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,0.1),transparent);"></div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -583,12 +588,12 @@ if st.session_state.page == "home":
 
     if username == "admin":
         st.markdown("""
-            <div style="display:flex;align-items:center;gap:14px;margin:2.5rem 0 1.4rem 0;">
-                <span style="font-size:0.7rem;font-weight:800;letter-spacing:0.38em;
-                             text-transform:uppercase;color:#ffd700;white-space:nowrap;">
-                    🔑 Admin
+            <div style="display:flex;align-items:center;gap:18px;margin:3.5rem 0 2rem 0;">
+                <span style="font-size:0.75rem;font-weight:800;letter-spacing:0.4em;
+                             text-transform:uppercase;color:#e2e8f0;white-space:nowrap;">
+                    <span style="color:#f59e0b;">●</span> ADMIN CONTROLS
                 </span>
-                <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(255,215,0,0.4),transparent);"></div>
+                <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,0.1),transparent);"></div>
             </div>
         """, unsafe_allow_html=True)
         adm1, adm2, adm3, adm4 = st.columns(4, gap="medium")
@@ -598,16 +603,16 @@ if st.session_state.page == "home":
 
 
     st.markdown("""
-        <div style="margin-top:4rem; padding:2rem 0.5rem; border-top:1px solid rgba(255,255,255,0.06);
+        <div style="margin-top:6rem; padding:2rem 0; border-top:1px solid rgba(255,255,255,0.08);
                     display:flex; justify-content:space-between; align-items:flex-end;">
-            <div style="color:rgba(255,255,255,0.25); font-size:0.75rem; line-height:1.6;">
-                <p style="margin:0; letter-spacing:0.1em; font-weight:700;">YOGIRAM AUTOMATION &nbsp;·&nbsp; v4.0</p>
-                <p style="margin:0; opacity:0.6;">Signed in as <strong style="color:#00f2ff;">{user}</strong></p>
+            <div style="color:#64748b; font-size:0.8rem; line-height:1.6;">
+                <p style="margin:0; letter-spacing:0.15em; font-weight:800; color:#94a3b8;">YOGIRAM AUTOMATION</p>
+                <p style="margin:0;">Signed in as <strong style="color:#06b6d4;">{user}</strong></p>
             </div>
             <div style="text-align:right;">
-                <p style="margin:0; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.2em; color:rgba(255,255,255,0.3); font-weight:800;">Developed By</p>
-                <p style="margin:0; font-size:1.1rem; font-weight:800; background:linear-gradient(135deg,#00f2ff,#39ff14); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-family:'Outfit';">Gokul Srinivas</p>
-                <p style="margin:0; font-size:0.75rem; color:rgba(255,255,255,0.5); font-weight:600; letter-spacing:0.05em;">Data Analyst</p>
+                <p style="margin:0; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.2em; color:#64748b; font-weight:800;">Developed By</p>
+                <p style="margin:0; font-size:1.15rem; font-weight:800; background:linear-gradient(135deg,#06b6d4,#4f46e5); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-family:'Outfit';">Gokul Srinivas</p>
+                <p style="margin:0; font-size:0.8rem; color:#64748b; font-weight:600; letter-spacing:0.05em;">Data Analyst</p>
             </div>
         </div>
     """.format(user=username), unsafe_allow_html=True)
