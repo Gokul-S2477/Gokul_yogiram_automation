@@ -1032,6 +1032,10 @@ elif st.session_state.page == "na_finder":
         df1 = pd.read_excel(file1) if file1.name.endswith(".xlsx") else pd.read_csv(file1)
         df2 = pd.read_excel(file2) if file2.name.endswith(".xlsx") else pd.read_csv(file2)
 
+        # Fix Streamlit Arrow JSON parsing bug for columns
+        df1.columns = df1.columns.astype(str)
+        df2.columns = df2.columns.astype(str)
+
         st.write("### File Previews")
         st.write("Indent Data:")
         st.dataframe(df1.head())
