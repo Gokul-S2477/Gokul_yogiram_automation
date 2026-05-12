@@ -1029,67 +1029,83 @@ elif st.session_state.page == "na_finder":
     file2 = st.file_uploader("Upload second file (Item Master)", type=["xlsx","csv"], key="file2")
 
     if file1 and file2:
-        df1 = pd.read_excel(file1) if file1.name.endswith(".xlsx") else pd.read_csv(file1)
-        df2 = pd.read_excel(file2) if file2.name.endswith(".xlsx") else pd.read_csv(file2)
+        try:
+            df1 = pd.read_excel(file1) if file1.name.endswith(".xlsx") else pd.read_csv(file1)
+            df2 = pd.read_excel(file2) if file2.name.endswith(".xlsx") else pd.read_csv(file2)
 
-        # Fix Streamlit Arrow JSON parsing bug for columns
-        df1.columns = df1.columns.astype(str).str.strip()
-        df2.columns = df2.columns.astype(str).str.strip()
+            # Normalize column names
+            df1.columns = [str(c).strip() for c in df1.columns]
+            df2.columns = [str(c).strip() for c in df2.columns]
 
-        # Fix Streamlit Arrow JSON mixed-type rendering bug
-        for col in df1.select_dtypes(include=['object', 'str']).columns:
-            df1[col] = df1[col].astype(str)
-        for col in df2.select_dtypes(include=['object', 'str']).columns:
-            df2[col] = df2[col].astype(str)
+            # Safely cast all non-numeric columns to string to avoid Arrow/PyArrow crashes
+            for col in df1.columns:
+                if df1[col].dtype == object:
+                    df1[col] = df1[col].fillna("").astype(str)
+            for col in df2.columns:
+                if df2[col].dtype == object:
+                    df2[col] = df2[col].fillna("").astype(str)
 
-        st.write("### File Previews")
-        st.write("Indent Data:")
-        st.dataframe(df1.head())
-        st.write("Item Master Data:")
-        st.dataframe(df2.head())
+            st.write("### File Previews")
+            st.write("Indent Data:")
+            st.dataframe(df1.head())
+            st.write("Item Master Data:")
+            st.dataframe(df2.head())
+
+        except Exception as e:
+            st.error(f"⚠️ Error reading files: {e}")
+            st.stop()
 
         # ---------- Process Button ----------
         if st.button("🚀 Process & Merge Qty from Item Master"):
-            numeric_cols = ['NA', 'NA VALUE']
-            for col in numeric_cols:
-                if col in df1.columns:
+            try:
+                # Check required columns in df1
+                required_df1 = ['SKU CODE', 'CODE', 'ITEM NAME', 'COMPANY', 'NA', 'NA VALUE']
+                missing_df1 = [c for c in required_df1 if c not in df1.columns]
+                if missing_df1:
+                    st.error(f"⚠️ Indent Data is missing columns: {', '.join(missing_df1)}")
+                    st.stop()
+
+                # Convert numeric cols back from str
+                for col in ['NA', 'NA VALUE']:
                     df1[col] = pd.to_numeric(df1[col], errors='coerce').fillna(0)
 
-            grouped_df = df1.groupby(
-                ['SKU CODE', 'CODE', 'ITEM NAME', 'COMPANY'],
-                as_index=False
-            ).agg({
-                'NA': ['count', 'sum'],
-                'NA VALUE': 'sum'
-            })
+                grouped_df = df1.groupby(
+                    ['SKU CODE', 'CODE', 'ITEM NAME', 'COMPANY'],
+                    as_index=False
+                ).agg({
+                    'NA': ['count', 'sum'],
+                    'NA VALUE': 'sum'
+                })
 
-            grouped_df.columns = [
-                'SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY',
-                'Count of NA', 'Sum of NA', 'Sum of NA VALUE'
-            ]
+                grouped_df.columns = [
+                    'SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY',
+                    'Count of NA', 'Sum of NA', 'Sum of NA VALUE'
+                ]
 
-            if "Gold Code" not in df2.columns or "Qty" not in df2.columns:
-                st.error("Second file must have 'Gold Code' and 'Qty' columns")
-                st.stop()
+                if "Gold Code" not in df2.columns or "Qty" not in df2.columns:
+                    st.error("⚠️ Item Master file must have 'Gold Code' and 'Qty' columns")
+                    st.stop()
 
-            grouped_df['Gold Code'] = grouped_df['Gold Code'].astype(str).str.strip()
-            df2['Gold Code'] = df2['Gold Code'].astype(str).str.strip()
+                grouped_df['Gold Code'] = grouped_df['Gold Code'].astype(str).str.strip()
+                df2['Gold Code'] = df2['Gold Code'].astype(str).str.strip()
 
-            merged_df = grouped_df.merge(
-                df2[['Gold Code', 'Qty']],
-                on='Gold Code',
-                how='left'
-            )
+                merged_df = grouped_df.merge(
+                    df2[['Gold Code', 'Qty']],
+                    on='Gold Code',
+                    how='left'
+                )
 
-            merged_df['Qty'] = merged_df['Qty'].fillna(0)
+                merged_df['Qty'] = pd.to_numeric(merged_df['Qty'], errors='coerce').fillna(0)
 
-            merged_df = merged_df[['SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY', 'Qty',
-                                   'Count of NA', 'Sum of NA', 'Sum of NA VALUE']]
+                merged_df = merged_df[['SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY', 'Qty',
+                                       'Count of NA', 'Sum of NA', 'Sum of NA VALUE']]
 
-            # Store in session_state so it persists after text input
-            st.session_state["merged_df"] = merged_df
+                # Store in session_state so it persists after text input
+                st.session_state["merged_df"] = merged_df
+                st.success("✅ Processing completed! Scroll down for more options.")
 
-            st.success("✅ Processing completed! Scroll down for more options.")
+            except Exception as e:
+                st.error(f"⚠️ Processing error: {e}")
 
         # ---------- If processed data exists ----------
         if "merged_df" in st.session_state:
@@ -1099,9 +1115,6 @@ elif st.session_state.page == "na_finder":
             st.dataframe(merged_df)
 
             # ---------- Download buttons ----------
-            from io import BytesIO
-
-
             excel_data = save_df_to_excel_with_format(merged_df, sheet_name="Merged")
             st.download_button("📥 Download Final Excel", data=excel_data,
                                file_name="NA_Finder_Final.xlsx",
@@ -1139,6 +1152,8 @@ elif st.session_state.page == "na_finder":
 
                 except ValueError:
                     st.error("⚠️ Please enter a valid numeric value.")
+
+
 
 
 # ------------------ DB AGE ANALYSIS MODULE ------------------
