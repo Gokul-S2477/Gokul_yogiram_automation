@@ -81,14 +81,14 @@ def _render_module_home():
                     key=f"open_{module['id']}",
                     on_click=_open_module,
                     args=(module["id"],),
-                    use_container_width=True,
+                    width='stretch',
                 )
             else:
                 st.button(
                     "Coming Soon",
                     disabled=True,
                     key=f"disabled_{module['id']}",
-                    use_container_width=True,
+                    width='stretch',
                 )
 
 
@@ -98,7 +98,7 @@ def _render_active_module():
         "Back to Modules",
         key="back_to_modules",
         on_click=_back_to_home,
-        use_container_width=True,
+        width='stretch',
     )
 
     st.divider()
@@ -130,7 +130,7 @@ def _render_sidebar_controls():
                 "Back to Modules",
                 key="sidebar_back_to_modules",
                 on_click=_back_to_home,
-                use_container_width=True,
+                width='stretch',
             )
 
 

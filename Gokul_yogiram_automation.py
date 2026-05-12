@@ -551,17 +551,17 @@ if st.session_state.page == "home":
 
     t1, t2, t3, t4 = st.columns(4, gap="medium")
     with t1:
-        if st.button("ℹ️  Info Guide",       key="btn_info", use_container_width=True):   go_info()
-        if st.button("📈  Pharma Forecast",  key="btn_fc", use_container_width=True):     go_forecast()
+        if st.button("ℹ️  Info Guide",       key="btn_info", width='stretch'):   go_info()
+        if st.button("📈  Pharma Forecast",  key="btn_fc", width='stretch'):     go_forecast()
     with t2:
-        if st.button("🛒  Apollo Check",    key="btn_apollo", use_container_width=True): go_apollo()
-        if st.button("📦  Pending Indents", key="btn_pi", use_container_width=True):     go_pending_indents()
+        if st.button("🛒  Apollo Check",    key="btn_apollo", width='stretch'): go_apollo()
+        if st.button("📦  Pending Indents", key="btn_pi", width='stretch'):     go_pending_indents()
     with t3:
-        if st.button("🔒  Order Lock",      key="btn_ol", use_container_width=True):     go_pending_lock()
-        if st.button("⏳  Due List",              key="btn_due", use_container_width=True):    go_aging_analysis()
+        if st.button("🔒  Order Lock",      key="btn_ol", width='stretch'):     go_pending_lock()
+        if st.button("⏳  Due List",              key="btn_due", width='stretch'):    go_aging_analysis()
     with t4:
-        if st.button("🧾  NA Finder",       key="btn_na", use_container_width=True):     go_na_finder()
-        if st.button("💰  Sales Portal",   key="btn_sales", use_container_width=True):  go_sales()
+        if st.button("🧾  NA Finder",       key="btn_na", width='stretch'):     go_na_finder()
+        if st.button("💰  Sales Portal",   key="btn_sales", width='stretch'):  go_sales()
 
     # Additional Modules section header
     st.markdown("""
@@ -576,15 +576,15 @@ if st.session_state.page == "home":
 
     a1, a2, a3, a4 = st.columns(4, gap="medium")
     with a1:
-        if st.button("📂  Claim Portal",      key="btn_claim", use_container_width=True):   go_claim()
-        if st.button("📊  Max Min Portal",    key="btn_mm", use_container_width=True):      go_maxmin()
+        if st.button("📂  Claim Portal",      key="btn_claim", width='stretch'):   go_claim()
+        if st.button("📊  Max Min Portal",    key="btn_mm", width='stretch'):      go_maxmin()
     with a2:
-        if st.button("📊  DB Age Analysis",   key="btn_db", use_container_width=True):      st.session_state.page = "db_age"
+        if st.button("📊  DB Age Analysis",   key="btn_db", width='stretch'):      st.session_state.page = "db_age"
     with a3:
-        if st.button("💹  Contribution",      key="btn_contrib", use_container_width=True): st.session_state.page = "sales_contribution"
-        if st.button("🧠  AI Analyst",        key="btn_ai", use_container_width=True):      st.session_state.page = "ai_data_assistant"
+        if st.button("💹  Contribution",      key="btn_contrib", width='stretch'): st.session_state.page = "sales_contribution"
+        if st.button("🧠  AI Analyst",        key="btn_ai", width='stretch'):      st.session_state.page = "ai_data_assistant"
     with a4:
-        if st.button("🚚  Courier Map",     key="btn_cm", use_container_width=True):     go_courier_mapper()
+        if st.button("🚚  Courier Map",     key="btn_cm", width='stretch'):     go_courier_mapper()
 
     if username == "admin":
         st.markdown("""
@@ -598,7 +598,7 @@ if st.session_state.page == "home":
         """, unsafe_allow_html=True)
         adm1, adm2, adm3, adm4 = st.columns(4, gap="medium")
         with adm1:
-            if st.button("📝  Login Activity", key="btn_admin", use_container_width=True): go_admin_log()
+            if st.button("📝  Login Activity", key="btn_admin", width='stretch'): go_admin_log()
 
 
 
@@ -717,7 +717,7 @@ elif st.session_state.page == "ai_data_assistant":
     if uploaded:
         df = pd.read_csv(uploaded) if uploaded.name.endswith(".csv") else pd.read_excel(uploaded)
         st.success("✅ File loaded")
-        st.dataframe(df.head(), use_container_width=True)
+        st.dataframe(df.head(), width='stretch')
 
     # ---------------- EXCEL DOWNLOAD ----------------
     def download_excel(dataframe):
@@ -765,11 +765,11 @@ st.write("Natural language business explanation")
 
 TABLE FORMAT:
 result_df = ...
-st.dataframe(result_df, use_container_width=True)
+st.dataframe(result_df, width='stretch')
 
 CHART FORMAT:
 fig = px.bar / px.line / px.pie
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 SUMMARY INTELLIGENCE RULES:
 - Calculate contribution %
@@ -916,31 +916,31 @@ elif st.session_state.page == "sales":
             sales_by_day = df.groupby('Weekday')[value_col].sum().reindex(
                 ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']).reset_index()
             st.write("### 🗓 Total Sales by Day")
-            st.dataframe(sales_by_day, use_container_width=True)
+            st.dataframe(sales_by_day, width='stretch')
 
             # 2. Sales by Company
             if company_col:
                 company_sales = df.groupby(company_col)[value_col].sum().reset_index()
                 st.write(f"### 🏢 Total Sales by {company_col}")
-                st.dataframe(company_sales.sort_values(value_col, ascending=False), use_container_width=True)
+                st.dataframe(company_sales.sort_values(value_col, ascending=False), width='stretch')
             
             # 3. Sales by Outlet
             if outlet_col:
                 outlet_sales = df.groupby(outlet_col)[value_col].sum().reset_index()
                 st.write(f"### 🏪 Total Sales by {outlet_col}")
-                st.dataframe(outlet_sales.sort_values(value_col, ascending=False), use_container_width=True)
+                st.dataframe(outlet_sales.sort_values(value_col, ascending=False), width='stretch')
 
             # 4. Sales by Product
             if product_col:
                 product_sales = df.groupby(product_col)[value_col].sum().reset_index()
                 st.write(f"### 📦 Total Sales by {product_col}")
-                st.dataframe(product_sales.sort_values(value_col, ascending=False), use_container_width=True)
+                st.dataframe(product_sales.sort_values(value_col, ascending=False), width='stretch')
 
             # 5. Sales by Salesman
             if salesman_col:
                 salesman_sales = df.groupby(salesman_col)[value_col].sum().reset_index()
                 st.write(f"### 👨‍💼 Total Sales by {salesman_col}")
-                st.dataframe(salesman_sales.sort_values(value_col, ascending=False), use_container_width=True)
+                st.dataframe(salesman_sales.sort_values(value_col, ascending=False), width='stretch')
 
             # Generate formatted Excel export
             export_dict = {"Sales_by_Day": sales_by_day}
@@ -1357,7 +1357,7 @@ elif st.session_state.page == "sales_contribution":
     display_cols += ["amount", "qty", "cum_amount", "cum_pct"]
 
     st.markdown("### 📋 Ranked Products (by Sales)")
-    st.dataframe(agg[display_cols].rename(columns={"_prod_id": prod_label}), use_container_width=True)
+    st.dataframe(agg[display_cols].rename(columns={"_prod_id": prod_label}), width='stretch')
 
     # ---------- Percentage selection ----------
     st.markdown("---")
@@ -1430,12 +1430,12 @@ elif st.session_state.page == "sales_contribution":
     # ---------- Display selected tables ----------
     st.markdown(f"### 🔎 {mode} — {percent}% selection (Products: {sel_count})")
     sel_display = top_level_selected[display_cols].rename(columns={"_prod_id": prod_label}).sort_values("amount", ascending=False)
-    st.dataframe(sel_display, use_container_width=True)
+    st.dataframe(sel_display, width='stretch')
 
     if nested_enabled:
         st.markdown(f"### 🔎 Nested selection ({nested_percent}%) inside the above (Products: {len(nested_df)})")
         nested_display = nested_df[display_cols].rename(columns={"_prod_id": prod_label}).sort_values("amount", ascending=False)
-        st.dataframe(nested_display, use_container_width=True)
+        st.dataframe(nested_display, width='stretch')
 
     # ---------- Download options ----------
 
@@ -1509,7 +1509,7 @@ elif st.session_state.page == "courier_mapper":
         df1.columns = df1.columns.str.strip()
 
         st.markdown("### 👀 Transaction File Preview")
-        st.dataframe(df1.head(), use_container_width=True)
+        st.dataframe(df1.head(), width='stretch')
 
         required_cols1 = ["A/c No.", "Cust.Name", "Trn.No."]
         if not all(col in df1.columns for col in required_cols1):
@@ -1545,7 +1545,7 @@ elif st.session_state.page == "courier_mapper":
         )
 
         st.markdown("### 👀 Courier File Preview")
-        st.dataframe(df2.head(), use_container_width=True)
+        st.dataframe(df2.head(), width='stretch')
 
         # Detect No Of Bill column (OLD LOGIC – UNCHANGED)
         bill_col_candidates = [col for col in df2.columns if "no of bill" in col.lower()]
@@ -1577,7 +1577,7 @@ elif st.session_state.page == "courier_mapper":
         df3.columns = df3.columns.str.strip()
 
         st.markdown("### 👀 Tray File Preview")
-        st.dataframe(df3.head(), use_container_width=True)
+        st.dataframe(df3.head(), width='stretch')
 
         if "CUSTNAME" not in df3.columns or "TRAYID" not in df3.columns:
             st.error("⚠️ Tray file must contain CUSTNAME and TRAYID columns")
@@ -1607,7 +1607,7 @@ elif st.session_state.page == "courier_mapper":
 
         st.success("✅ TRAY ID column added (format unchanged)")
         st.markdown("### ✅ Final Result Preview")
-        st.dataframe(df2.head(10), use_container_width=True)
+        st.dataframe(df2.head(10), width='stretch')
 
         # ------------------ Name & Date ------------------
         name_option = st.selectbox(
@@ -1742,10 +1742,10 @@ elif st.session_state.page == "pending_lock_analyzer":
 
         # ---------- PREVIEW ----------
         st.subheader("📄 Report 1 — All Orders (Includes 0)")
-        st.dataframe(report_all, use_container_width=True)
+        st.dataframe(report_all, width='stretch')
 
         st.subheader("📄 Report 2 — Orders Without 0")
-        st.dataframe(report_without_zero, use_container_width=True)
+        st.dataframe(report_without_zero, width='stretch')
 
         # ---------- EXCEL FUNCTION ----------
         def to_excel(df):
@@ -1941,7 +1941,7 @@ elif st.session_state.page == "aging_analysis":
                 styler.set_properties(**{'background-color': '#161b22', 'color': '#ffffff', 'border-color': '#30363d'})
                 return styler
 
-            st.dataframe(final_display_df.style.pipe(style_aging_table), use_container_width=True)
+            st.dataframe(final_display_df.style.pipe(style_aging_table), width='stretch')
             
             # Full Download Option (We download the pivot_df without the styled TOTAL row for clean data usage)
             full_excel = save_df_to_excel_with_format(final_display_df, sheet_name="Full Aging Report")
@@ -1994,7 +1994,7 @@ elif st.session_state.page == "aging_analysis":
                 filtered_display_df = pd.concat([filtered_pivot, f_col_totals])
                 
                 st.write(f"### 📋 Preview for Selected Salesmen ({len(selected_salesmen)})")
-                st.dataframe(filtered_display_df.style.pipe(style_aging_table), use_container_width=True)
+                st.dataframe(filtered_display_df.style.pipe(style_aging_table), width='stretch')
                 
                 # File Naming Logic
                 salesmen_str = "_".join(selected_salesmen)[:50] 

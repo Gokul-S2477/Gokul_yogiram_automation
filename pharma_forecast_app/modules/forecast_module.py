@@ -303,7 +303,7 @@ def _render_bar_chart(df, label_col, value_col, title):
         st.info("No data available.")
         return
     chart_df = df.set_index(label_col)[[value_col]]
-    st.bar_chart(chart_df, use_container_width=True)
+    st.bar_chart(chart_df, width='stretch')
 
 
 def _render_summary_dashboard(bundle):
@@ -494,7 +494,7 @@ def render_forecast_module():
     summary_bundle = _build_summary_bundle(final_df)
 
     st.header("Final Order Recommendation")
-    st.dataframe(final_df, use_container_width=True)
+    st.dataframe(final_df, width='stretch')
 
     st.divider()
     _render_summary_dashboard(summary_bundle)
