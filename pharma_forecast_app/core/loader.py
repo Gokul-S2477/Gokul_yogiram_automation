@@ -46,13 +46,22 @@ def extract_sales_columns(df):
     # -------------------------
     # ITEM CODE (MANDATORY)
     # -------------------------
-    if "BARCODE" not in df.columns:
+    item_code_col = None
+    for col in df.columns:
+        if col in ["BARCODE", "ITEM CODE", "ITEMCODE", "GOLD CODE"]:
+            item_code_col = col
+            break
+        if "ITEM CODE" in col:
+            item_code_col = col
+            break
+
+    if item_code_col is None:
         raise ValueError(
-            "Sales file error: BARCODE column missing. "
-            "ERP sales export must contain BARCODE."
+            f"Sales file error: BARCODE or ITEM CODE column missing. "
+            f"Columns found: {list(df.columns)}"
         )
 
-    df["ITEM_CODE"] = df["BARCODE"]
+    df["ITEM_CODE"] = df[item_code_col].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
 
     # -------------------------
     # ITEM NAME (OPTIONAL BUT IMPORTANT)
@@ -141,7 +150,7 @@ def extract_stock_columns(df):
             "Stock file error: Item Code / Gold Code column missing."
         )
 
-    df["ITEM_CODE"] = df[item_col]
+    df["ITEM_CODE"] = df[item_col].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
 
     # -------------------------
     # STOCK QTY
@@ -262,7 +271,7 @@ def extract_ns_columns(df):
             f"Columns found: {list(df.columns)}"
         )
 
-    df["ITEM_CODE"] = df[item_code_col]
+    df["ITEM_CODE"] = df[item_code_col].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
 
     # -------------------------------------------------
     # LOSS ORDER QTY
