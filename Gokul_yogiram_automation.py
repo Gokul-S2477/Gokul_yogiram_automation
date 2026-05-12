@@ -1036,6 +1036,12 @@ elif st.session_state.page == "na_finder":
         df1.columns = df1.columns.astype(str).str.strip()
         df2.columns = df2.columns.astype(str).str.strip()
 
+        # Fix Streamlit Arrow JSON mixed-type rendering bug
+        for col in df1.select_dtypes(include=['object']).columns:
+            df1[col] = df1[col].astype(str)
+        for col in df2.select_dtypes(include=['object']).columns:
+            df2[col] = df2[col].astype(str)
+
         st.write("### File Previews")
         st.write("Indent Data:")
         st.dataframe(df1.head())
