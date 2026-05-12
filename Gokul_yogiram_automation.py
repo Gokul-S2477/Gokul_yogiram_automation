@@ -1033,8 +1033,8 @@ elif st.session_state.page == "na_finder":
         df2 = pd.read_excel(file2) if file2.name.endswith(".xlsx") else pd.read_csv(file2)
 
         # Fix Streamlit Arrow JSON parsing bug for columns
-        df1.columns = df1.columns.astype(str)
-        df2.columns = df2.columns.astype(str)
+        df1.columns = df1.columns.astype(str).str.strip()
+        df2.columns = df2.columns.astype(str).str.strip()
 
         st.write("### File Previews")
         st.write("Indent Data:")
@@ -1066,13 +1066,16 @@ elif st.session_state.page == "na_finder":
                 st.error("Second file must have 'Gold Code' and 'Qty' columns")
                 st.stop()
 
+            grouped_df['Gold Code'] = grouped_df['Gold Code'].astype(str).str.strip()
+            df2['Gold Code'] = df2['Gold Code'].astype(str).str.strip()
+
             merged_df = grouped_df.merge(
                 df2[['Gold Code', 'Qty']],
                 on='Gold Code',
                 how='left'
             )
 
-            merged_df['Qty'] = merged_df['Qty'].fillna('N/A')
+            merged_df['Qty'] = merged_df['Qty'].fillna(0)
 
             merged_df = merged_df[['SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY', 'Qty',
                                    'Count of NA', 'Sum of NA', 'Sum of NA VALUE']]
