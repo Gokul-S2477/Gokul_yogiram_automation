@@ -1037,9 +1037,9 @@ elif st.session_state.page == "na_finder":
         df2.columns = df2.columns.astype(str).str.strip()
 
         # Fix Streamlit Arrow JSON mixed-type rendering bug
-        for col in df1.select_dtypes(include=['object']).columns:
+        for col in df1.select_dtypes(include=['object', 'str']).columns:
             df1[col] = df1[col].astype(str)
-        for col in df2.select_dtypes(include=['object']).columns:
+        for col in df2.select_dtypes(include=['object', 'str']).columns:
             df2[col] = df2[col].astype(str)
 
         st.write("### File Previews")
