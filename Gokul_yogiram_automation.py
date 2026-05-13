@@ -22,6 +22,11 @@ try:
 except ImportError:
     render_forecast_module = None
 
+try:
+    from modules.pharma_dashboard_module import render_dashboard as render_pharma_dashboard
+except ImportError as e:
+    render_pharma_dashboard = None
+
 # =========================================================
 # PHARMA FORECAST STANDALONE ENGINE (MODULAR REDIRECT)
 # =========================================================
@@ -511,6 +516,8 @@ def go_aging_analysis():
     st.session_state.page = "aging_analysis"
 def go_forecast():
     st.session_state.page = "pharma_forecast"
+def go_pharma_dashboard():
+    st.session_state.page = "pharma_dashboard"
 
 # ================== HOME PAGE ==================
 if st.session_state.page == "home":
@@ -580,6 +587,7 @@ if st.session_state.page == "home":
         if st.button("📊  Max Min Portal",    key="btn_mm", width='stretch'):      go_maxmin()
     with a2:
         if st.button("📊  DB Age Analysis",   key="btn_db", width='stretch'):      st.session_state.page = "db_age"
+        if st.button("💊  Pharma Dashboard",  key="btn_pharma_dash", width='stretch'): go_pharma_dashboard()
     with a3:
         if st.button("💹  Contribution",      key="btn_contrib", width='stretch'): st.session_state.page = "sales_contribution"
         if st.button("🧠  AI Analyst",        key="btn_ai", width='stretch'):      st.session_state.page = "ai_data_assistant"
@@ -2036,6 +2044,13 @@ elif st.session_state.page == "aging_analysis":
             st.error(f"⚠️ Error processing file: {e}")
 
 
+
+# ------------------ PHARMA DASHBOARD MODULE ------------------
+elif st.session_state.page == "pharma_dashboard":
+    if render_pharma_dashboard:
+        render_pharma_dashboard()
+    else:
+        st.error("Pharma Dashboard Module not found or failed to load.")
 
 # ------------------ PHARMA FORECAST MODULE ------------------
 elif st.session_state.page == "pharma_forecast":
