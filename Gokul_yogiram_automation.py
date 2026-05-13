@@ -23,8 +23,9 @@ except ImportError:
     render_forecast_module = None
 
 try:
-    from modules.pharma_dashboard_module import render_dashboard as render_pharma_dashboard
+    from app_modules.pharma_dashboard_module import render_dashboard as render_pharma_dashboard
 except ImportError as e:
+    st.error(f"Error loading pharma dashboard: {e}")
     render_pharma_dashboard = None
 
 # =========================================================
