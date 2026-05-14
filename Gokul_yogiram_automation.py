@@ -436,7 +436,8 @@ users = {
     "bhuvana":"1234",
     "kiruba":"1234",
     "kaviya":"1234",
-    "sneha":"1234"
+    "sneha":"1234",
+    "vignesh":"1234"
 }
 
 if "logged_in" not in st.session_state:
