@@ -28,6 +28,12 @@ except ImportError as e:
     st.error(f"Error loading pharma dashboard: {e}")
     render_pharma_dashboard = None
 
+try:
+    from app_modules.branch_transfer_module import render_branch_transfer
+except ImportError as e:
+    st.error(f"Error loading branch transfer module: {e}")
+    render_branch_transfer = None
+
 # =========================================================
 # PHARMA FORECAST STANDALONE ENGINE (MODULAR REDIRECT)
 # =========================================================
@@ -520,6 +526,8 @@ def go_forecast():
     st.session_state.page = "pharma_forecast"
 def go_pharma_dashboard():
     st.session_state.page = "pharma_dashboard"
+def go_branch_transfer():
+    st.session_state.page = "branch_transfer"
 
 # ================== HOME PAGE ==================
 if st.session_state.page == "home":
@@ -595,6 +603,7 @@ if st.session_state.page == "home":
         if st.button("🧠  AI Analyst",        key="btn_ai", width='stretch'):      st.session_state.page = "ai_data_assistant"
     with a4:
         if st.button("🚚  Courier Map",     key="btn_cm", width='stretch'):     go_courier_mapper()
+        if st.button("🔄  Branch Transfer", key="btn_bt", width='stretch'):     go_branch_transfer()
 
     if username == "admin":
         st.markdown("""
@@ -628,6 +637,13 @@ if st.session_state.page == "home":
     """.format(user=username), unsafe_allow_html=True)
 
 
+
+# ------------------ BRANCH TRANSFER MODULE ------------------
+elif st.session_state.page == "branch_transfer":
+    if render_branch_transfer:
+        render_branch_transfer()
+    else:
+        st.error("Branch Transfer Module is missing.")
 
 # ------------------ INFO MODULE ------------------
 elif st.session_state.page == "info":
