@@ -207,6 +207,14 @@ def extract_stock_columns(df):
     else:
         df["STOCK_PACK"] = ""
 
+    # -------------------------
+    # GOLD CODE (NEW COLUMN)
+    # -------------------------
+    if "GOLD CODE" in df.columns:
+        df["GOLD_CODE"] = df["GOLD CODE"].astype(str).str.strip()
+    else:
+        df["GOLD_CODE"] = ""
+
     return df[
         [
             "ITEM_CODE",
@@ -215,6 +223,7 @@ def extract_stock_columns(df):
             "COST_RATE",
             "LAST_PURCHASE_DT",
             "STOCK_PACK",
+            "GOLD_CODE",
         ]
     ]
 

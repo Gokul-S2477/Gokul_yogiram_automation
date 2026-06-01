@@ -25,6 +25,7 @@ FORECAST_RUN_KEY = "forecast_run_requested"
 
 FORECAST_OUTPUT_COLUMNS = [
     "ITEM_CODE",
+    "GOLD_CODE",
     "ITEM_NAME",
     "COMPANY",
     "PACK",
@@ -270,6 +271,71 @@ def _build_summary_bundle(final_df):
     }
 
 
+def _style_excel_table(worksheet, start_row, start_col, num_rows, num_cols):
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    
+    # Established header color: Orange (#F4B084)
+    header_fill = PatternFill(start_color="F4B084", end_color="F4B084", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="000000")
+    
+    # Alternating rows fill: very light soft orange tint (#FCF5F0)
+    alt_fill = PatternFill(start_color="FCF5F0", end_color="FCF5F0", fill_type="solid")
+    
+    # Grid lines/Borders
+    thin_border = Border(
+        left=Side(style='thin', color='D9D9D9'),
+        right=Side(style='thin', color='D9D9D9'),
+        top=Side(style='thin', color='D9D9D9'),
+        bottom=Side(style='thin', color='D9D9D9')
+    )
+    
+    # 1. Style Header Row
+    for col_idx in range(start_col, start_col + num_cols):
+        cell = worksheet.cell(row=start_row, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = thin_border
+        
+    # 2. Style Data Rows
+    for row_idx in range(start_row + 1, start_row + num_rows + 1):
+        is_alt = (row_idx - start_row) % 2 == 0
+        for col_idx in range(start_col, start_col + num_cols):
+            cell = worksheet.cell(row=row_idx, column=col_idx)
+            cell.border = thin_border
+            if is_alt:
+                cell.fill = alt_fill
+            
+            # Default text alignment
+            cell.alignment = Alignment(vertical="center")
+            
+            # Cell value formatting
+            val = cell.value
+            if val is not None:
+                header_cell = worksheet.cell(row=start_row, column=col_idx)
+                col_name_str = str(header_cell.value).upper().strip()
+                
+                # Check formatting rules
+                is_num = isinstance(val, (int, float))
+                is_curr = any(k in col_name_str for k in ["COST_RATE", "FINAL_ORDER_VALUE", "ORDER_VALUE", "LOSS_ORDER_AMT", "LOSS_AMT"])
+                is_int = any(k in col_name_str for k in ["MONTHLY_AVG", "WEEKLY_AVG", "STOCK_QTY", "SAFETY_STOCK", "FINAL_ORDER_QTY", "MIN_ORDER_QTY", "MAX_ORDER_QTY", "NS_ACTIVE", "NS_CONSECUTIVE", "NS_LINES", "NS_QTY", "AFFECTED_PARTIES", "COUNT", "ORDER_QTY", "REQUIRED_QTY"])
+                is_flt = any(k in col_name_str for k in ["DAILY_AVG", "TRUE_WEEKLY_DEMAND", "PREDICTED_DAILY_DEMAND", "DAYS_OF_COVER", "FILL_RATE", "COVER_DAYS", "AVERAGE"])
+                
+                if is_curr:
+                    cell.number_format = '"₹"#,##0.00'
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif is_int:
+                    cell.number_format = '#,##0'
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif is_flt:
+                    cell.number_format = '#,##0.00'
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif is_num:
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif col_name_str in ["ITEM_CODE", "GOLD_CODE", "LAST_PURCHASE_DT", "DAYS_SINCE_LAST_PURCHASE", "STOCK_STATUS", "ITEM_STATUS"]:
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+
+
 def _write_summary_sheet(writer, bundle):
     sheet_name = "Summary"
 
@@ -287,12 +353,91 @@ def _write_summary_sheet(writer, bundle):
     bundle["top_items_order_value"].to_excel(writer, sheet_name=sheet_name, index=False, startrow=36, startcol=0)
     bundle["top_items_ns_loss"].to_excel(writer, sheet_name=sheet_name, index=False, startrow=36, startcol=7)
 
+    # Style all sub-tables in Summary sheet
+    worksheet = writer.sheets[sheet_name]
+    _style_excel_table(worksheet, 1, 1, len(summary_df), len(summary_df.columns))
+    _style_excel_table(worksheet, 7, 1, len(bundle["kpi_table"]), len(bundle["kpi_table"].columns))
+    _style_excel_table(worksheet, 7, 5, len(bundle["top_companies_value"]), len(bundle["top_companies_value"].columns))
+    _style_excel_table(worksheet, 7, 9, len(bundle["top_companies_qty"]), len(bundle["top_companies_qty"].columns))
+    _style_excel_table(worksheet, 23, 1, len(bundle["stock_status_dist"]), len(bundle["stock_status_dist"].columns))
+    _style_excel_table(worksheet, 23, 5, len(bundle["item_status_dist"]), len(bundle["item_status_dist"].columns))
+    _style_excel_table(worksheet, 23, 9, len(bundle["cover_bucket_dist"]), len(bundle["cover_bucket_dist"].columns))
+    _style_excel_table(worksheet, 37, 1, len(bundle["top_items_order_value"]), len(bundle["top_items_order_value"].columns))
+    _style_excel_table(worksheet, 37, 8, len(bundle["top_items_ns_loss"]), len(bundle["top_items_ns_loss"].columns))
 
-def _to_excel(recommendation_df, summary_bundle):
+
+def _build_formula_guide(inventory_days):
+    guide_data = [
+        {"Column Name": "ITEM_CODE", "Source/Formula": "Mapped from 'ITEM CODE', 'BARCODE', or 'GOLD CODE' in sales/stock files.", "Description": "Unique identifier for the product."},
+        {"Column Name": "GOLD_CODE", "Source/Formula": "Mapped from 'GOLD CODE' in the stock file.", "Description": "Alternate ERP/product code."},
+        {"Column Name": "ITEM_NAME", "Source/Formula": "Mapped from 'ITEM NAME' or 'NAME' in sales/stock files.", "Description": "Product description."},
+        {"Column Name": "COMPANY", "Source/Formula": "Mapped from 'COMPANY' in sales files.", "Description": "Manufacturer/Brand name (DC Center excluded)."},
+        {"Column Name": "PACK", "Source/Formula": "Mapped from 'PACK' in stock or sales files.", "Description": "Unit packaging size."},
+        {"Column Name": "MONTHLY_AVG_QTY", "Source/Formula": "Total Monthly Sales Qty / Number of Monthly Files", "Description": "Average quantity sold per month."},
+        {"Column Name": "WEEKLY_AVG_QTY", "Source/Formula": "Total Weekly Sales Qty / Number of Weekly Files", "Description": "Average quantity sold per week."},
+        {"Column Name": "DAILY_AVG_QTY", "Source/Formula": "(Total Daily Sales Qty / Number of Daily Files) * (7/6)", "Description": "Average daily quantity sold (working day adjusted)."},
+        {"Column Name": "TRUE_WEEKLY_DEMAND", "Source/Formula": "WEEKLY_AVG_QTY + 0.5 * max(0, DAILY_WEEK_EQ - WEEKLY_AVG_QTY) + 0.3 * MONTHLY_WEEK_EQ (conditional). Gated by recent activity, capped at 1.5 * WEEKLY or MONTHLY_WEEK_EQ.", "Description": "Weighted demand estimate for a 7-day period."},
+        {"Column Name": "PREDICTED_DAILY_DEMAND", "Source/Formula": "TRUE_WEEKLY_DEMAND / 7.0", "Description": "Daily sales rate calculated from true weekly demand."},
+        {"Column Name": f"REQUIRED_QTY_{inventory_days}_DAYS", "Source/Formula": f"PREDICTED_DAILY_DEMAND * {inventory_days}", "Description": "Demand requirements for target inventory days (excluding stock/safety stock)."},
+        {"Column Name": "STOCK_QTY", "Source/Formula": "Mapped from 'QTY' column in the stock file.", "Description": "Current on-hand inventory quantity."},
+        {"Column Name": "RACK", "Source/Formula": "Mapped from 'RACK' or 'LOCATION' in stock/sales files.", "Description": "Warehouse rack location."},
+        {"Column Name": "COST_RATE", "Source/Formula": "Mapped from 'COSTRATE', 'COST RATE', or 'COST' in the stock file.", "Description": "Purchase price per unit."},
+        {"Column Name": "LAST_PURCHASE_DT", "Source/Formula": "Mapped from 'LAST PURCHASE DT.' in the stock file.", "Description": "Date of the most recent GRN or purchase."},
+        {"Column Name": "DAYS_SINCE_LAST_PURCHASE", "Source/Formula": "Selected Date - LAST_PURCHASE_DT", "Description": "Number of days since last stock receipt."},
+        {"Column Name": "DAYS_OF_COVER", "Source/Formula": "STOCK_QTY / DAILY_AVG_QTY", "Description": "Days remaining until stockout based on daily average sales."},
+        {"Column Name": "NS_ACTIVE_DAYS", "Source/Formula": "Count of days with Not Supplied (NS) transactions.", "Description": "Frequency of stockout occurrences."},
+        {"Column Name": "NS_CONSECUTIVE_MAX", "Source/Formula": "Maximum consecutive days with NS records.", "Description": "Duration of worst supply failure."},
+        {"Column Name": "NS_LINES_AVG", "Source/Formula": "Average number of customer order lines rejected daily due to NS.", "Description": "Customer impact frequency."},
+        {"Column Name": "NS_QTY_AVG", "Source/Formula": "Average daily quantity shortfall due to NS.", "Description": "Volume of lost sales."},
+        {"Column Name": "NS_TREND", "Source/Formula": "Direction of NS occurrences (INCREASING, DECREASING, STABLE).", "Description": "Supply trend indicator."},
+        {"Column Name": "NS_LOSS_ORDER_AMT_30D", "Source/Formula": "Sum of lost order values in the last 30 days due to NS.", "Description": "Revenue loss estimate."},
+        {"Column Name": "NS_FILL_RATE_30D", "Source/Formula": "Percentage of orders fulfilled in the last 30 days.", "Description": "Supplier fill rate performance."},
+        {"Column Name": "NS_AFFECTED_PARTIES_30D", "Source/Formula": "Count of unique customers affected by stockouts.", "Description": "Breadth of customer impact."},
+        {"Column Name": "SAFETY_STOCK", "Source/Formula": "TRUE_WEEKLY_DEMAND * SAFETY_PCT (Safety % escalates based on NS frequency, trend, and low cover. Max 60%).", "Description": "Buffer stock to prevent stockouts."},
+        {"Column Name": "FINAL_ORDER_QTY", "Source/Formula": "max(0, (TRUE_WEEKLY_DEMAND + SAFETY_STOCK) - STOCK_QTY)", "Description": "Recommended purchase order quantity."},
+        {"Column Name": "FINAL_ORDER_VALUE", "Source/Formula": "FINAL_ORDER_QTY * COST_RATE", "Description": "Estimated order cost."},
+        {"Column Name": "MIN_ORDER_QTY", "Source/Formula": "FINAL_ORDER_QTY * 0.90", "Description": "Minimum suggested purchase quantity."},
+        {"Column Name": "MAX_ORDER_QTY", "Source/Formula": "FINAL_ORDER_QTY * 1.10", "Description": "Maximum suggested purchase quantity."},
+        {"Column Name": "STOCK_STATUS", "Source/Formula": "CRITICAL (<3 days cover), LOW (<7 days cover), NORMAL (<14 days cover), EXCESS (>=14 days cover).", "Description": "Stock level alert category."},
+        {"Column Name": "ITEM_STATUS", "Source/Formula": "FAST (>10/week), MEDIUM (>2/week), SLOW (>0/week), DORMANT (0/week) based on True Weekly Demand.", "Description": "Inventory movement velocity."},
+        {"Column Name": "ORDER_REASON", "Source/Formula": "Triggered by stock levels: 'Critical Stock Cover', 'Low Stock Cover', 'Safety Buffer Replenishment', 'Non-Supplied Recovery', or 'Healthy Stock'.", "Description": "Contextual reason for purchase recommendation."}
+    ]
+    return pd.DataFrame(guide_data)
+
+
+def _to_excel(recommendation_df, summary_bundle, inventory_days):
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        # Write Recommendations
         recommendation_df.to_excel(writer, index=False, sheet_name="Recommendations")
+        worksheet_rec = writer.sheets["Recommendations"]
+        _style_excel_table(worksheet_rec, start_row=1, start_col=1, 
+                           num_rows=len(recommendation_df), num_cols=len(recommendation_df.columns))
+        
+        # Write Summary sheet
         _write_summary_sheet(writer, summary_bundle)
+        
+        # Build and write Formula Guide sheet
+        formula_guide_df = _build_formula_guide(inventory_days)
+        formula_guide_df.to_excel(writer, index=False, sheet_name="Formula Guide")
+        worksheet_guide = writer.sheets["Formula Guide"]
+        _style_excel_table(worksheet_guide, start_row=1, start_col=1, 
+                           num_rows=len(formula_guide_df), num_cols=len(formula_guide_df.columns))
+        
+        # Auto-adjust column widths for all worksheets
+        from openpyxl.utils import get_column_letter
+        for sheet_name in writer.sheets:
+            ws = writer.sheets[sheet_name]
+            for i, col in enumerate(ws.columns, 1):
+                max_length = 0
+                for cell in col:
+                    try:
+                        if cell.value:
+                            max_length = max(max_length, len(str(cell.value)))
+                    except: pass
+                col_letter = get_column_letter(i)
+                ws.column_dimensions[col_letter].width = min(max(max_length + 2, 10), 80)
+            
     buffer.seek(0)
     return buffer.getvalue()
 
@@ -383,6 +528,16 @@ def render_forecast_module():
     uploaded = upload_section()
     st.divider()
 
+    # Target inventory days select/input
+    inventory_days = st.number_input(
+        "Target Inventory Days for Custom Qty",
+        min_value=1,
+        max_value=365,
+        value=30,
+        step=1,
+        key="target_inventory_days_fc"
+    )
+
     if FORECAST_RUN_KEY not in st.session_state:
         st.session_state[FORECAST_RUN_KEY] = False
 
@@ -425,7 +580,7 @@ def render_forecast_module():
             .merge(ns_metrics, on="ITEM_CODE", how="left")
         )
 
-        for text_col in ["ITEM_NAME", "COMPANY", "PACK", "LOCATION", "RACK", "STOCK_PACK"]:
+        for text_col in ["ITEM_NAME", "COMPANY", "PACK", "LOCATION", "RACK", "STOCK_PACK", "GOLD_CODE"]:
             if text_col not in final_df.columns:
                 final_df[text_col] = ""
             final_df[text_col] = final_df[text_col].fillna("").astype(str)
@@ -483,7 +638,19 @@ def render_forecast_module():
         final_df = calculate_order_metrics(final_df)
         final_df = classify_items(final_df)
         final_df["FINAL_ORDER_VALUE"] = final_df["FINAL_ORDER_QTY"] * final_df["COST_RATE"]
-        final_df = final_df[FORECAST_OUTPUT_COLUMNS].sort_values(
+
+        # New columns: Predicted Daily Demand and Required Custom Qty
+        final_df["PREDICTED_DAILY_DEMAND"] = (final_df["TRUE_WEEKLY_DEMAND"] / 7.0).round(4)
+        custom_qty_col = f"REQUIRED_QTY_{inventory_days}_DAYS"
+        final_df[custom_qty_col] = (final_df["PREDICTED_DAILY_DEMAND"] * inventory_days).round(2)
+
+        output_cols = list(FORECAST_OUTPUT_COLUMNS)
+        # Find index of TRUE_WEEKLY_DEMAND to insert our new columns right after it
+        idx = output_cols.index("TRUE_WEEKLY_DEMAND")
+        output_cols.insert(idx + 1, "PREDICTED_DAILY_DEMAND")
+        output_cols.insert(idx + 2, custom_qty_col)
+
+        final_df = final_df[output_cols].sort_values(
             "FINAL_ORDER_QTY",
             ascending=False,
         )
@@ -501,7 +668,7 @@ def render_forecast_module():
 
     st.download_button(
         "Download Forecast Excel",
-        _to_excel(final_df, summary_bundle),
+        _to_excel(final_df, summary_bundle, inventory_days),
         file_name=f"pharma_forecast_{date.today()}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="download_forecast_excel",
