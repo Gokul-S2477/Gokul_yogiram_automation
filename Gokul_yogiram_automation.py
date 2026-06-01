@@ -1545,9 +1545,7 @@ elif st.session_state.page == "na_finder":
                                 ns_split_df = pd.concat([ns_split_df, grand_total_row], ignore_index=True)
 
                             # 2. TOTAL SKU'S SPLIT calculations
-                            merged_df_mapped = merged_df.copy()
-                            merged_df_mapped['PUR MEMBER'] = merged_df_mapped['COMPANY'].astype(str).str.strip().map(mapped_dict_normalized)
-                            sku_groups = merged_df_mapped.groupby('PUR MEMBER')
+                            sku_groups = merged_df_mapped.groupby('pur member')
                             sku_split_rows = []
                             for member, group in sku_groups:
                                 if is_blank_val(member):
