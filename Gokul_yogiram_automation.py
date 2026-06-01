@@ -1123,61 +1123,70 @@ elif st.session_state.page == "na_finder":
 
                 merged_df['Qty'] = pd.to_numeric(merged_df['Qty'], errors='coerce').fillna(0)
 
-                merged_df = merged_df[['SKU CODE', 'Gold Code', 'ITEM NAME', 'COMPANY', 'Qty',
-                                       'Count of NA', 'Sum of NA', 'Sum of NA VALUE']]
+                # Auto calculate base value from the total rows of df1 (Indent Data)
+                base_value = len(df1)
+                
+                # Group by company and calculate sum of Count of NA
+                company_summary = merged_df.groupby('COMPANY', as_index=False)['Count of NA'].sum()
 
-                # Store in session_state so it persists after text input
+                # Calculate percentage
+                company_summary['Percentage'] = ((company_summary['Count of NA'] / base_value) * 100).round(3)
+                company_summary['Percentage'] = company_summary['Percentage'].astype(str) + " %"
+
+                # Store in session_state so it persists
                 st.session_state["merged_df"] = merged_df
-                st.success("✅ Processing completed! Scroll down for more options.")
+                st.session_state["company_summary"] = company_summary
+                st.session_state["base_value"] = base_value
+                st.success("✅ Processing completed! Scroll down for results and downloads.")
 
             except Exception as e:
                 st.error(f"⚠️ Processing error: {e}")
 
         # ---------- If processed data exists ----------
-        if "merged_df" in st.session_state:
+        if "merged_df" in st.session_state and "company_summary" in st.session_state:
             merged_df = st.session_state["merged_df"]
+            company_summary = st.session_state["company_summary"]
+            base_value = st.session_state.get("base_value", 0)
 
-            st.write("### ✅ Final Merged Result with Qty from Item Master")
-            st.dataframe(merged_df)
-
-            # ---------- Download buttons ----------
-            excel_data = save_df_to_excel_with_format(merged_df, sheet_name="Merged")
-            st.download_button("📥 Download Final Excel", data=excel_data,
-                               file_name="NA_Finder_Final.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-            st.download_button("📥 Download Final CSV", data=merged_df.to_csv(index=False).encode('utf-8'),
-                               file_name="NA_Finder_Final.csv",
-                               mime="text/csv")
-
-            # ---------- New Section: Percentage Calculation ----------
             st.markdown("---")
-            st.subheader("📊 Company-wise NA Percentage Calculator")
+            st.info(f"📊 Auto-calculated total lines in main file: **{base_value:,}** rows")
 
-            user_input = st.text_input("Enter a number for percentage calculation (e.g., total value):")
+            # Create tabs for clean presentation
+            tab_company, tab_item = st.tabs(["🏢 Company Wise Summary", "📦 Item Wise Details"])
+            
+            with tab_company:
+                st.write("### 📈 Company-wise NA Summary")
+                st.dataframe(company_summary, width='stretch')
+                
+            with tab_item:
+                st.write("### ✅ Final Merged Result with Qty from Item Master")
+                st.dataframe(merged_df, width='stretch')
 
-            if user_input:
-                try:
-                    base_value = float(user_input)
-
-                    # Group by company and calculate sum of Count of NA
-                    company_summary = merged_df.groupby('COMPANY', as_index=False)['Count of NA'].sum()
-
-                    # Calculate percentage
-                    company_summary['Percentage'] = ((company_summary['Count of NA'] / base_value) * 100).round(3)
-                    company_summary['Percentage'] = company_summary['Percentage'].astype(str) + " %"
-
-                    st.write("### 📈 Company-wise NA Summary")
-                    st.dataframe(company_summary)
-
-                    # Optional download
-                    excel_summary = save_df_to_excel_with_format(company_summary, sheet_name="Summary")
-                    st.download_button("📥 Download Company Summary Excel", data=excel_summary,
-                                       file_name="Company_NA_Summary.xlsx",
-                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                except ValueError:
-                    st.error("⚠️ Please enter a valid numeric value.")
+            # ---------- Download section ----------
+            st.markdown("---")
+            st.subheader("📥 Downloads")
+            
+            # Combine into 2-sheet Excel: Company Wise as sheet 1, Item Details as sheet 2
+            excel_data = save_multi_df_to_excel_with_format({
+                "Company Wise": company_summary,
+                "Item Details": merged_df
+            })
+            
+            st.download_button(
+                "📥 Download NA Analysis Report (2-Sheet Excel)",
+                data=excel_data,
+                file_name="NA_Finder_Analysis_Report.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+            
+            st.download_button(
+                "📥 Download Item Details (CSV)",
+                data=merged_df.to_csv(index=False).encode('utf-8'),
+                file_name="NA_Finder_Item_Details.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
 
 
 
