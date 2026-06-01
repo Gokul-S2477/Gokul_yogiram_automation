@@ -1550,7 +1550,7 @@ elif st.session_state.page == "na_finder":
                             for member, group in sku_groups:
                                 if is_blank_val(member):
                                     continue
-                                ns_items = len(group)
+                                ns_items = group['SKU CODE'].nunique()
                                 ns_val = group['Sum of NA VALUE'].sum()
                                 active_items_val = active_items.get(member, 1)
                                 pct = ns_items / active_items_val if active_items_val > 0 else 0
@@ -1583,10 +1583,11 @@ elif st.session_state.page == "na_finder":
                                 member_df = merged_df_mapped[merged_df_mapped['pur member'] == member]
                                 if member_df.empty:
                                     continue
-                                unique_items = len(member_df)
-                                zero_stock = len(member_df[member_df['Qty'] == 0])
-                                pos_stock = len(member_df[member_df['Qty'] > 0])
-                                tot_stock = member_df['Qty'].sum()
+                                unique_items_df = member_df.drop_duplicates(subset=['SKU CODE'])
+                                unique_items = len(unique_items_df)
+                                zero_stock = len(unique_items_df[unique_items_df['Qty'] == 0])
+                                pos_stock = len(unique_items_df[unique_items_df['Qty'] > 0])
+                                tot_stock = unique_items_df['Qty'].sum()
                                 tot_na_val = member_df['Sum of NA VALUE'].sum()
                                 avg_val = tot_na_val / unique_items if unique_items > 0 else 0
                                 
