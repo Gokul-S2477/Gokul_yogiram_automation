@@ -133,7 +133,7 @@ def save_multi_df_to_excel_with_format(df_dict):
     return out.getvalue()
 
 
-def save_na_report_to_excel(company_summary, merged_df, ns_split_df=None, sku_split_df=None):
+def save_na_report_to_excel(company_summary, merged_df, ns_split_df=None, sku_split_df=None, insights_df=None):
     from io import BytesIO
     from openpyxl import Workbook
     from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
@@ -312,6 +312,52 @@ def save_na_report_to_excel(company_summary, merged_df, ns_split_df=None, sku_sp
                         cell.number_format = '0.00%'
                 else:
                     cell.alignment = Alignment(horizontal="left", vertical="center")
+                    
+        # ─── Table 3: PURCHASE MEMBER DETAILED INSIGHTS ───
+        if insights_df is not None:
+            start_row_t3 = start_row_t2 + len(sku_split_df) + 5  # gap of 3 empty rows
+            # Title row
+            ws3.merge_cells(start_row=start_row_t3, start_column=1, end_row=start_row_t3, end_column=len(insights_df.columns))
+            title_cell3 = ws3.cell(row=start_row_t3, column=1, value="PURCHASE MEMBER DETAILED INSIGHTS")
+            title_cell3.fill = title_fill
+            title_cell3.font = title_font
+            title_cell3.alignment = Alignment(horizontal="center", vertical="center")
+            for col_idx in range(1, len(insights_df.columns) + 1):
+                ws3.cell(row=start_row_t3, column=col_idx).border = thin_border
+                
+            # Header row
+            for col_idx, col_name in enumerate(insights_df.columns, 1):
+                cell = ws3.cell(row=start_row_t3 + 1, column=col_idx, value=col_name)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.border = thin_border
+                
+            # Data rows
+            for row_idx_offset, row_vals in enumerate(insights_df.values, start_row_t3 + 2):
+                is_grand = (row_idx_offset - (start_row_t3 + 2)) == len(insights_df) - 1
+                for col_idx, val in enumerate(row_vals, 1):
+                    cell = ws3.cell(row=row_idx_offset, column=col_idx, value=val)
+                    cell.font = data_font
+                    if is_grand:
+                        cell.font = Font(name="Calibri", size=11, bold=True)
+                        cell.border = grand_total_border
+                    else:
+                        cell.border = thin_border
+                    
+                    # Formats
+                    col_name_str = str(insights_df.columns[col_idx-1]).upper().strip()
+                    if "VALUE" in col_name_str or "AVG" in col_name_str:
+                        cell.number_format = '"₹"#,##0'
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                    elif "ITEMS" in col_name_str or "STOCK" in col_name_str or "COUNT" in col_name_str:
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                        try:
+                            if isinstance(val, (int, float)):
+                                cell.number_format = '#,##0'
+                        except: pass
+                    else:
+                        cell.alignment = Alignment(horizontal="left", vertical="center")
                     
     # Auto-adjust column widths for all worksheets
     for ws in wb.worksheets:
@@ -1356,6 +1402,7 @@ elif st.session_state.page == "na_finder":
             unmapped_companies = []
             ns_split_df = None
             sku_split_df = None
+            insights_df = None
             company_summary_mapped = company_summary
             merged_df_mapped = merged_df
 
@@ -1532,11 +1579,70 @@ elif st.session_state.page == "na_finder":
                                 }])
                                 sku_split_df = pd.concat([sku_split_df, grand_total_sku_row], ignore_index=True)
 
+                            # 3. PURCHASE MEMBER DETAILED INSIGHTS calculations
+                            insights_rows = []
+                            for member in unique_members:
+                                member_df = merged_df_mapped[merged_df_mapped['pur member'] == member]
+                                if member_df.empty:
+                                    continue
+                                unique_items = len(member_df)
+                                zero_stock = len(member_df[member_df['Qty'] == 0])
+                                pos_stock = len(member_df[member_df['Qty'] > 0])
+                                tot_stock = member_df['Qty'].sum()
+                                tot_na_val = member_df['Sum of NA VALUE'].sum()
+                                avg_val = tot_na_val / unique_items if unique_items > 0 else 0
+                                
+                                comp_sums = member_df.groupby('COMPANY')['Sum of NA VALUE'].sum()
+                                if not comp_sums.empty:
+                                    top_comp = comp_sums.idxmax()
+                                    top_comp_val = comp_sums.max()
+                                    top_company_str = f"{top_comp} (₹{top_comp_val:,.0f})"
+                                else:
+                                    top_company_str = "N/A"
+                                    
+                                insights_rows.append({
+                                    'purchase member': member,
+                                    'unique na items': unique_items,
+                                    'items with 0 stock': zero_stock,
+                                    'items with >0 stock': pos_stock,
+                                    'total stock of na items': tot_stock,
+                                    'avg na value per item': avg_val,
+                                    'top company by na value': top_company_str
+                                })
+                            insights_df = pd.DataFrame(insights_rows)
+                            if not insights_df.empty:
+                                insights_df = insights_df.sort_values('purchase member').reset_index(drop=True)
+                                tot_items = insights_df['unique na items'].sum()
+                                tot_zero = insights_df['items with 0 stock'].sum()
+                                tot_pos = insights_df['items with >0 stock'].sum()
+                                tot_stock_val = insights_df['total stock of na items'].sum()
+                                overall_tot_na_val = merged_df_mapped['Sum of NA VALUE'].sum()
+                                overall_avg_val = overall_tot_na_val / tot_items if tot_items > 0 else 0
+                                
+                                overall_comp_sums = merged_df_mapped.groupby('COMPANY')['Sum of NA VALUE'].sum()
+                                if not overall_comp_sums.empty:
+                                    overall_top = overall_comp_sums.idxmax()
+                                    overall_top_val = overall_comp_sums.max()
+                                    overall_top_str = f"{overall_top} (₹{overall_top_val:,.0f})"
+                                else:
+                                    overall_top_str = "N/A"
+                                    
+                                grand_total_row_ins = pd.DataFrame([{
+                                    'purchase member': 'Grand Total',
+                                    'unique na items': tot_items,
+                                    'items with 0 stock': tot_zero,
+                                    'items with >0 stock': tot_pos,
+                                    'total stock of na items': tot_stock_val,
+                                    'avg na value per item': overall_avg_val,
+                                    'top company by na value': overall_top_str
+                                }])
+                                insights_df = pd.concat([insights_df, grand_total_row_ins], ignore_index=True)
+
                 except Exception as ex:
                     st.error(f"⚠️ Error processing Purchase Member mapping file: {ex}")
 
             # Create tabs for clean presentation
-            if mapping_valid and ns_split_df is not None and sku_split_df is not None:
+            if mapping_valid and ns_split_df is not None and sku_split_df is not None and insights_df is not None:
                 tab_company, tab_item, tab_member = st.tabs([
                     "🏢 Company Wise Summary", 
                     "📦 Item Wise Details", 
@@ -1550,13 +1656,13 @@ elif st.session_state.page == "na_finder":
 
             with tab_company:
                 st.write("### 📈 Company-wise NA Summary")
-                st.dataframe(company_summary_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None) else company_summary, width='stretch')
+                st.dataframe(company_summary_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None and insights_df is not None) else company_summary, width='stretch')
 
             with tab_item:
                 st.write("### ✅ Final Merged Result with Qty from Item Master")
-                st.dataframe(merged_df_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None) else merged_df, width='stretch')
+                st.dataframe(merged_df_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None and insights_df is not None) else merged_df, width='stretch')
 
-            if mapping_valid and ns_split_df is not None and sku_split_df is not None:
+            if mapping_valid and ns_split_df is not None and sku_split_df is not None and insights_df is not None:
                 with tab_member:
                     st.write("### 📊 Purchase Member Analysis")
                     
@@ -1576,17 +1682,25 @@ elif st.session_state.page == "na_finder":
                         lambda x: f"₹ {x:,.0f}" if isinstance(x, (int, float)) else str(x)
                     )
                     st.dataframe(sku_disp, width='stretch')
+                    
+                    st.write("#### 3. PURCHASE MEMBER DETAILED INSIGHTS")
+                    insights_disp = insights_df.copy()
+                    insights_disp['avg na value per item'] = insights_disp['avg na value per item'].apply(
+                        lambda x: f"₹ {x:,.0f}" if isinstance(x, (int, float)) else str(x)
+                    )
+                    st.dataframe(insights_disp, width='stretch')
 
             # ---------- Download section ----------
             st.markdown("---")
             st.subheader("📥 Downloads")
 
-            if mapping_valid and ns_split_df is not None and sku_split_df is not None:
+            if mapping_valid and ns_split_df is not None and sku_split_df is not None and insights_df is not None:
                 excel_data_3sheet = save_na_report_to_excel(
                     company_summary_mapped,
                     merged_df_mapped,
                     ns_split_df,
-                    sku_split_df
+                    sku_split_df,
+                    insights_df
                 )
                 st.download_button(
                     "📥 Download NA Analysis Report (3-Sheet Excel with Purchase Member Summary)",
@@ -1611,7 +1725,7 @@ elif st.session_state.page == "na_finder":
 
             st.download_button(
                 "📥 Download Item Details (CSV)",
-                data=(merged_df_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None) else merged_df).to_csv(index=False).encode('utf-8'),
+                data=(merged_df_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None and insights_df is not None) else merged_df).to_csv(index=False).encode('utf-8'),
                 file_name="NA_Finder_Item_Details.csv",
                 mime="text/csv",
                 use_container_width=True
