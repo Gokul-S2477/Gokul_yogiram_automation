@@ -132,6 +132,203 @@ def save_multi_df_to_excel_with_format(df_dict):
 
     return out.getvalue()
 
+
+def save_na_report_to_excel(company_summary, merged_df, ns_split_df=None, sku_split_df=None):
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    
+    wb = Workbook()
+    
+    # Setup styles
+    # Primary header fill: Orange (#F4B084)
+    header_fill = PatternFill(start_color="F4B084", end_color="F4B084", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="000000")
+    
+    # Title row gray fill: Gray (#D9D9D9)
+    title_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+    title_font = Font(name="Calibri", size=11, bold=True, color="000000")
+    
+    # Alternating row fill: light soft orange tint (#FCF5F0)
+    alt_fill = PatternFill(start_color="FCF5F0", end_color="FCF5F0", fill_type="solid")
+    
+    # Grid lines / Borders
+    thin_border = Border(
+        left=Side(style='thin', color='D9D9D9'),
+        right=Side(style='thin', color='D9D9D9'),
+        top=Side(style='thin', color='D9D9D9'),
+        bottom=Side(style='thin', color='D9D9D9')
+    )
+    
+    data_font = Font(name="Calibri", size=11, color="000000")
+    
+    grand_total_border = Border(
+        left=Side(style='thin', color='D9D9D9'),
+        right=Side(style='thin', color='D9D9D9'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='double', color='000000')
+    )
+    
+    # Helper to style a standard dataframe in a sheet
+    def write_standard_sheet(ws, df, sheet_name):
+        ws.title = sheet_name
+        # Write headers
+        for col_idx, col_name in enumerate(df.columns, 1):
+            cell = ws.cell(row=1, column=col_idx, value=col_name)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = thin_border
+            
+        # Write data
+        for row_idx, row_vals in enumerate(df.values, 2):
+            is_alt = row_idx % 2 == 0
+            for col_idx, val in enumerate(row_vals, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=val)
+                cell.font = data_font
+                cell.border = thin_border
+                if is_alt:
+                    cell.fill = alt_fill
+                
+                # Check formatting
+                col_name_str = str(df.columns[col_idx-1]).upper().strip()
+                if "VALUE" in col_name_str:
+                    cell.number_format = '"₹"#,##0.00'
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif "COUNT" in col_name_str or "QTY" in col_name_str or "NA" in col_name_str:
+                    try:
+                        if isinstance(val, (int, float)):
+                            cell.number_format = '#,##0'
+                    except: pass
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif col_name_str in ["SKU CODE", "CODE", "GOLD CODE", "PERCENTAGE"]:
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                else:
+                    cell.alignment = Alignment(vertical="center")
+                    
+    # Sheet 1: Company Wise
+    ws1 = wb.active
+    write_standard_sheet(ws1, company_summary, "Company Wise")
+    
+    # Sheet 2: Item Details
+    ws2 = wb.create_sheet()
+    write_standard_sheet(ws2, merged_df, "Item Details")
+    
+    # Sheet 3: Purchase Member Summary (if provided)
+    if ns_split_df is not None and sku_split_df is not None:
+        ws3 = wb.create_sheet(title="Purchase Member Summary")
+        
+        # ─── Table 1: NS SPLIT ───
+        # Title row
+        ws3.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(ns_split_df.columns))
+        title_cell1 = ws3.cell(row=1, column=1, value="NS SPLIT")
+        title_cell1.fill = title_fill
+        title_cell1.font = title_font
+        title_cell1.alignment = Alignment(horizontal="center", vertical="center")
+        for col_idx in range(1, len(ns_split_df.columns) + 1):
+            ws3.cell(row=1, column=col_idx).border = thin_border
+            
+        # Header row
+        for col_idx, col_name in enumerate(ns_split_df.columns, 1):
+            cell = ws3.cell(row=2, column=col_idx, value=col_name)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = thin_border
+            
+        # Data rows
+        for row_idx, row_vals in enumerate(ns_split_df.values, 3):
+            is_grand = (row_idx - 3) == len(ns_split_df) - 1
+            for col_idx, val in enumerate(row_vals, 1):
+                cell = ws3.cell(row=row_idx, column=col_idx, value=val)
+                cell.font = data_font
+                if is_grand:
+                    cell.font = Font(name="Calibri", size=11, bold=True)
+                    cell.border = grand_total_border
+                else:
+                    cell.border = thin_border
+                
+                # Formats
+                col_name_str = str(ns_split_df.columns[col_idx-1]).upper().strip()
+                if "PERCENT" in col_name_str:
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                    if isinstance(val, (int, float)):
+                        cell.number_format = '0.00%'
+                elif "NO OF LINES" in col_name_str or "COUNT OF COMPANY" in col_name_str:
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                    try:
+                        if isinstance(val, (int, float)):
+                            cell.number_format = '#,##0'
+                    except: pass
+                else:
+                    cell.alignment = Alignment(horizontal="left", vertical="center")
+                    
+        # ─── Table 2: TOTAL SKU'S SPLIT ───
+        start_row_t2 = len(ns_split_df) + 5  # gap of 2 empty rows
+        # Title row
+        ws3.merge_cells(start_row=start_row_t2, start_column=1, end_row=start_row_t2, end_column=len(sku_split_df.columns))
+        title_cell2 = ws3.cell(row=start_row_t2, column=1, value="TOTAL SKU'S SPLIT")
+        title_cell2.fill = title_fill
+        title_cell2.font = title_font
+        title_cell2.alignment = Alignment(horizontal="center", vertical="center")
+        for col_idx in range(1, len(sku_split_df.columns) + 1):
+            ws3.cell(row=start_row_t2, column=col_idx).border = thin_border
+            
+        # Header row
+        for col_idx, col_name in enumerate(sku_split_df.columns, 1):
+            cell = ws3.cell(row=start_row_t2 + 1, column=col_idx, value=col_name)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = thin_border
+            
+        # Data rows
+        for row_idx_offset, row_vals in enumerate(sku_split_df.values, start_row_t2 + 2):
+            is_grand = (row_idx_offset - (start_row_t2 + 2)) == len(sku_split_df) - 1
+            for col_idx, val in enumerate(row_vals, 1):
+                cell = ws3.cell(row=row_idx_offset, column=col_idx, value=val)
+                cell.font = data_font
+                if is_grand:
+                    cell.font = Font(name="Calibri", size=11, bold=True)
+                    cell.border = grand_total_border
+                else:
+                    cell.border = thin_border
+                
+                # Formats
+                col_name_str = str(sku_split_df.columns[col_idx-1]).upper().strip()
+                if "VALUE" in col_name_str:
+                    cell.number_format = '"₹"#,##0'
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif "COUNT" in col_name_str or "ACTIVE" in col_name_str:
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                    try:
+                        if isinstance(val, (int, float)):
+                            cell.number_format = '#,##0'
+                    except: pass
+                elif "PERCENT" in col_name_str:
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                    if isinstance(val, (int, float)):
+                        cell.number_format = '0.00%'
+                else:
+                    cell.alignment = Alignment(horizontal="left", vertical="center")
+                    
+    # Auto-adjust column widths for all worksheets
+    for ws in wb.worksheets:
+        for i, col in enumerate(ws.columns, 1):
+            max_length = 0
+            for cell in col:
+                try:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                except: pass
+            col_letter = get_column_letter(i)
+            ws.column_dimensions[col_letter].width = min(max(max_length + 2, 12), 80)
+            
+    out = BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(
     page_title="Yogiram Automation - Gokul",
@@ -1053,6 +1250,7 @@ elif st.session_state.page == "na_finder":
     # Upload files
     file1 = st.file_uploader("Upload first file (Indent Data)", type=["xlsx","csv"], key="file1")
     file2 = st.file_uploader("Upload second file (Item Master)", type=["xlsx","csv"], key="file2")
+    file3 = st.file_uploader("Upload third file (Purchase Member mapping - Optional)", type=["xlsx","csv"], key="file3")
 
     if file1 and file2:
         try:
@@ -1137,6 +1335,7 @@ elif st.session_state.page == "na_finder":
                 st.session_state["merged_df"] = merged_df
                 st.session_state["company_summary"] = company_summary
                 st.session_state["base_value"] = base_value
+                st.session_state["raw_df1"] = df1
                 st.success("✅ Processing completed! Scroll down for results and downloads.")
 
             except Exception as e:
@@ -1147,39 +1346,260 @@ elif st.session_state.page == "na_finder":
             merged_df = st.session_state["merged_df"]
             company_summary = st.session_state["company_summary"]
             base_value = st.session_state.get("base_value", 0)
+            raw_df1 = st.session_state.get("raw_df1", None)
 
             st.markdown("---")
             st.info(f"📊 Auto-calculated total lines in main file: **{base_value:,}** rows")
 
+            # ---------- Optional Purchase Member Mapping Check ----------
+            mapping_valid = False
+            unmapped_companies = []
+            ns_split_df = None
+            sku_split_df = None
+
+            if file3:
+                try:
+                    df3 = pd.read_excel(file3) if file3.name.endswith(".xlsx") else pd.read_csv(file3)
+                    # Normalize columns
+                    df3.columns = [str(c).strip() for c in df3.columns]
+                    
+                    # Find key columns
+                    company_group_col = None
+                    pur_member_col = None
+                    for col in df3.columns:
+                        col_stripped = str(col).strip().upper()
+                        if col_stripped == "COMPANY GROUP":
+                            company_group_col = col
+                        elif col_stripped == "PUR MEMBER":
+                            pur_member_col = col
+
+                    # Fuzzy match fallbacks
+                    if not company_group_col:
+                        for col in df3.columns:
+                            c = str(col).upper()
+                            if "COMPANY" in c and ("GROUP" in c or "GRP" in c):
+                                company_group_col = col
+                                break
+                    if not company_group_col:
+                        for col in df3.columns:
+                            if "COMPANY" in str(col).upper():
+                                company_group_col = col
+                                break
+
+                    if not pur_member_col:
+                        for col in df3.columns:
+                            c = str(col).upper()
+                            if "PUR" in c or "MEMBER" in c:
+                                pur_member_col = col
+                                break
+
+                    if not company_group_col or not pur_member_col:
+                        st.error("⚠️ Purchase Member mapping file must contain 'COMPANY GROUP' and 'PUR MEMBER' columns.")
+                    else:
+                        # Clean and map
+                        def is_blank_val(v):
+                            if pd.isna(v):
+                                return True
+                            v_str = str(v).strip()
+                            return v_str == "" or v_str.lower() in ["nan", "none", "null"]
+
+                        mapping_df = df3[[company_group_col, pur_member_col]].dropna(subset=[company_group_col])
+                        mapping_df[company_group_col] = mapping_df[company_group_col].astype(str).str.strip().str.upper()
+                        mapping_df[pur_member_col] = mapping_df[pur_member_col].astype(str).str.strip()
+
+                        mapping_dict = {}
+                        for _, row in mapping_df.iterrows():
+                            cg = row[company_group_col]
+                            pm = row[pur_member_col]
+                            if not is_blank_val(pm):
+                                mapping_dict[cg] = pm
+
+                        # Companies in results
+                        comp_df = raw_df1 if raw_df1 is not None else merged_df
+                        unique_companies = set(comp_df['COMPANY'].astype(str).str.strip().unique())
+                        unique_companies = {c for c in unique_companies if not is_blank_val(c)}
+
+                        mapped_dict_normalized = {}
+                        for company in unique_companies:
+                            norm_company = company.upper()
+                            if norm_company in mapping_dict:
+                                mapped_dict_normalized[company] = mapping_dict[norm_company]
+                            else:
+                                unmapped_companies.append(company)
+
+                        unmapped_companies = sorted(unmapped_companies)
+
+                        if unmapped_companies:
+                            st.warning("⚠️ Some companies could not be mapped to a Purchase Member!")
+                            st.info("💡 You can copy the unmapped companies list below, add them to your Purchase Member mapping file, and re-upload.")
+                            unmapped_text = "\n".join(unmapped_companies)
+                            st.text_area("📋 Unmapped Companies (Copyable):", value=unmapped_text, height=180, key="unmapped_area")
+                        else:
+                            mapping_valid = True
+                            st.success("✅ All companies successfully mapped to Purchase Members!")
+
+                            # Get unique purchase members
+                            unique_members = sorted(list(set(mapped_dict_normalized.values())))
+
+                            # Inputs for active items
+                            st.markdown("---")
+                            st.markdown("### 🔢 Enter Total Active Items per Purchase Member")
+                            cols = st.columns(len(unique_members))
+                            active_items = {}
+                            for idx, member in enumerate(unique_members):
+                                with cols[idx]:
+                                    state_key = f"active_items_{member}"
+                                    val = st.number_input(
+                                        f"Active Items ({member})",
+                                        min_value=1,
+                                        value=st.session_state.get(state_key, 1000),
+                                        key=state_key
+                                    )
+                                    active_items[member] = val
+
+                            # 1. NS SPLIT calculations
+                            comp_df_mapped = comp_df.copy()
+                            comp_df_mapped['PUR MEMBER'] = comp_df_mapped['COMPANY'].astype(str).str.strip().map(mapped_dict_normalized)
+                            total_lines = len(comp_df_mapped)
+                            ns_groups = comp_df_mapped.groupby('PUR MEMBER')
+                            ns_split_rows = []
+                            for member, group in ns_groups:
+                                if is_blank_val(member):
+                                    continue
+                                num_lines = len(group)
+                                unique_companies_count = group['COMPANY'].nunique()
+                                pct = num_lines / total_lines if total_lines > 0 else 0
+                                ns_split_rows.append({
+                                    'PUR MEMBER': member,
+                                    'Percentage': pct,
+                                    'NO OF LINES': num_lines,
+                                    'Count of COMPANY': unique_companies_count
+                                })
+                            ns_split_df = pd.DataFrame(ns_split_rows)
+                            if not ns_split_df.empty:
+                                ns_split_df = ns_split_df.sort_values('PUR MEMBER').reset_index(drop=True)
+                                grand_total_lines = ns_split_df['NO OF LINES'].sum()
+                                grand_total_companies = ns_split_df['Count of COMPANY'].sum()
+                                grand_total_row = pd.DataFrame([{
+                                    'PUR MEMBER': 'Grand Total',
+                                    'Percentage': '=',
+                                    'NO OF LINES': grand_total_lines,
+                                    'Count of COMPANY': grand_total_companies
+                                }])
+                                ns_split_df = pd.concat([ns_split_df, grand_total_row], ignore_index=True)
+
+                            # 2. TOTAL SKU'S SPLIT calculations
+                            merged_df_mapped = merged_df.copy()
+                            merged_df_mapped['PUR MEMBER'] = merged_df_mapped['COMPANY'].astype(str).str.strip().map(mapped_dict_normalized)
+                            sku_groups = merged_df_mapped.groupby('PUR MEMBER')
+                            sku_split_rows = []
+                            for member, group in sku_groups:
+                                if is_blank_val(member):
+                                    continue
+                                ns_items = len(group)
+                                ns_val = group['Sum of NA VALUE'].sum()
+                                active_items_val = active_items.get(member, 1)
+                                pct = ns_items / active_items_val if active_items_val > 0 else 0
+                                sku_split_rows.append({
+                                    'purchase member': member,
+                                    'total active items': active_items_val,
+                                    'ns items count': ns_items,
+                                    'percentage': pct,
+                                    'NS VALUE (₹)': ns_val
+                                })
+                            sku_split_df = pd.DataFrame(sku_split_rows)
+                            if not sku_split_df.empty:
+                                sku_split_df = sku_split_df.sort_values('purchase member').reset_index(drop=True)
+                                grand_total_active = sku_split_df['total active items'].sum()
+                                grand_total_ns_items = sku_split_df['ns items count'].sum()
+                                grand_total_pct = grand_total_ns_items / grand_total_active if grand_total_active > 0 else 0
+                                grand_total_ns_val = sku_split_df['NS VALUE (₹)'].sum()
+                                grand_total_sku_row = pd.DataFrame([{
+                                    'purchase member': 'Grand Total',
+                                    'total active items': grand_total_active,
+                                    'ns items count': grand_total_ns_items,
+                                    'percentage': grand_total_pct,
+                                    'NS VALUE (₹)': grand_total_ns_val
+                                }])
+                                sku_split_df = pd.concat([sku_split_df, grand_total_sku_row], ignore_index=True)
+
+                except Exception as ex:
+                    st.error(f"⚠️ Error processing Purchase Member mapping file: {ex}")
+
             # Create tabs for clean presentation
-            tab_company, tab_item = st.tabs(["🏢 Company Wise Summary", "📦 Item Wise Details"])
-            
+            if mapping_valid and ns_split_df is not None and sku_split_df is not None:
+                tab_company, tab_item, tab_member = st.tabs([
+                    "🏢 Company Wise Summary", 
+                    "📦 Item Wise Details", 
+                    "👥 Purchase Member Summary"
+                ])
+            else:
+                tab_company, tab_item = st.tabs([
+                    "🏢 Company Wise Summary", 
+                    "📦 Item Wise Details"
+                ])
+
             with tab_company:
                 st.write("### 📈 Company-wise NA Summary")
                 st.dataframe(company_summary, width='stretch')
-                
+
             with tab_item:
                 st.write("### ✅ Final Merged Result with Qty from Item Master")
                 st.dataframe(merged_df, width='stretch')
 
+            if mapping_valid and ns_split_df is not None and sku_split_df is not None:
+                with tab_member:
+                    st.write("### 📊 Purchase Member Analysis")
+                    
+                    st.write("#### 1. NS SPLIT")
+                    ns_disp = ns_split_df.copy()
+                    ns_disp['Percentage'] = ns_disp['Percentage'].apply(
+                        lambda x: f"{x * 100:.2f}%" if isinstance(x, (int, float)) else str(x)
+                    )
+                    st.dataframe(ns_disp, width='stretch')
+                    
+                    st.write("#### 2. TOTAL SKU'S SPLIT")
+                    sku_disp = sku_split_df.copy()
+                    sku_disp['percentage'] = sku_disp['percentage'].apply(
+                        lambda x: f"{x * 100:.2f}%" if isinstance(x, (int, float)) else str(x)
+                    )
+                    sku_disp['NS VALUE (₹)'] = sku_disp['NS VALUE (₹)'].apply(
+                        lambda x: f"₹ {x:,.0f}" if isinstance(x, (int, float)) else str(x)
+                    )
+                    st.dataframe(sku_disp, width='stretch')
+
             # ---------- Download section ----------
             st.markdown("---")
             st.subheader("📥 Downloads")
-            
-            # Combine into 2-sheet Excel: Company Wise as sheet 1, Item Details as sheet 2
-            excel_data = save_multi_df_to_excel_with_format({
-                "Company Wise": company_summary,
-                "Item Details": merged_df
-            })
-            
-            st.download_button(
-                "📥 Download NA Analysis Report (2-Sheet Excel)",
-                data=excel_data,
-                file_name="NA_Finder_Analysis_Report.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-            
+
+            if mapping_valid and ns_split_df is not None and sku_split_df is not None:
+                excel_data_3sheet = save_na_report_to_excel(
+                    company_summary,
+                    merged_df,
+                    ns_split_df,
+                    sku_split_df
+                )
+                st.download_button(
+                    "📥 Download NA Analysis Report (3-Sheet Excel with Purchase Member Summary)",
+                    data=excel_data_3sheet,
+                    file_name="NA_Finder_Purchase_Member_Analysis_Report.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            else:
+                # Combine into 2-sheet Excel
+                excel_data = save_multi_df_to_excel_with_format({
+                    "Company Wise": company_summary,
+                    "Item Details": merged_df
+                })
+                st.download_button(
+                    "📥 Download NA Analysis Report (2-Sheet Excel)",
+                    data=excel_data,
+                    file_name="NA_Finder_Analysis_Report.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+
             st.download_button(
                 "📥 Download Item Details (CSV)",
                 data=merged_df.to_csv(index=False).encode('utf-8'),
