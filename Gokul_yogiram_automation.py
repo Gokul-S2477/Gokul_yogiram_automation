@@ -1356,6 +1356,8 @@ elif st.session_state.page == "na_finder":
             unmapped_companies = []
             ns_split_df = None
             sku_split_df = None
+            company_summary_mapped = company_summary
+            merged_df_mapped = merged_df
 
             if file3:
                 try:
@@ -1440,6 +1442,13 @@ elif st.session_state.page == "na_finder":
 
                             # Get unique purchase members
                             unique_members = sorted(list(set(mapped_dict_normalized.values())))
+
+                            # Map purchase member column to Company Wise and Item Details dataframes
+                            company_summary_mapped = company_summary.copy()
+                            company_summary_mapped['pur member'] = company_summary_mapped['COMPANY'].astype(str).str.strip().map(mapped_dict_normalized)
+                            
+                            merged_df_mapped = merged_df.copy()
+                            merged_df_mapped['pur member'] = merged_df_mapped['COMPANY'].astype(str).str.strip().map(mapped_dict_normalized)
 
                             # Inputs for active items
                             st.markdown("---")
@@ -1541,11 +1550,11 @@ elif st.session_state.page == "na_finder":
 
             with tab_company:
                 st.write("### 📈 Company-wise NA Summary")
-                st.dataframe(company_summary, width='stretch')
+                st.dataframe(company_summary_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None) else company_summary, width='stretch')
 
             with tab_item:
                 st.write("### ✅ Final Merged Result with Qty from Item Master")
-                st.dataframe(merged_df, width='stretch')
+                st.dataframe(merged_df_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None) else merged_df, width='stretch')
 
             if mapping_valid and ns_split_df is not None and sku_split_df is not None:
                 with tab_member:
@@ -1574,8 +1583,8 @@ elif st.session_state.page == "na_finder":
 
             if mapping_valid and ns_split_df is not None and sku_split_df is not None:
                 excel_data_3sheet = save_na_report_to_excel(
-                    company_summary,
-                    merged_df,
+                    company_summary_mapped,
+                    merged_df_mapped,
                     ns_split_df,
                     sku_split_df
                 )
@@ -1602,7 +1611,7 @@ elif st.session_state.page == "na_finder":
 
             st.download_button(
                 "📥 Download Item Details (CSV)",
-                data=merged_df.to_csv(index=False).encode('utf-8'),
+                data=(merged_df_mapped if (mapping_valid and ns_split_df is not None and sku_split_df is not None) else merged_df).to_csv(index=False).encode('utf-8'),
                 file_name="NA_Finder_Item_Details.csv",
                 mime="text/csv",
                 use_container_width=True
