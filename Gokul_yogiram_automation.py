@@ -1405,7 +1405,7 @@ elif st.session_state.page == "na_finder":
 
                         mapping_df = df3[[company_group_col, pur_member_col]].dropna(subset=[company_group_col])
                         mapping_df[company_group_col] = mapping_df[company_group_col].astype(str).str.strip().str.upper()
-                        mapping_df[pur_member_col] = mapping_df[pur_member_col].astype(str).str.strip()
+                        mapping_df[pur_member_col] = mapping_df[pur_member_col].astype(str).str.strip().str.upper()
 
                         mapping_dict = {}
                         for _, row in mapping_df.iterrows():
