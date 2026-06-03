@@ -103,10 +103,49 @@ VALUE_COLS_PRIORITY = [
     "SPUR RET", "TRI", "SRET", "ADJ.", "CLS.STK", "OP.", "CLS STK"
 ]
 
-def _build_pivot(combined_df, value_col):
+def _get_unmapped_products(df):
+    """
+    Extract products where GOLD CODE is missing/NaN/empty, 
+    but they have a non-zero Sale or Closing Stock.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame()
+        
+    df_copy = df.copy()
+    
+    # 1. Identify Gold Code column
+    gc_col = next((c for c in ["GOLD CODE"] if c in df_copy.columns), None)
+    if gc_col:
+        no_gc = (
+            df_copy[gc_col].isna() | 
+            (df_copy[gc_col].astype(str).str.strip().isin(["", "nan", "None", "NaN", "<NA>"]))
+        )
+    else:
+        no_gc = pd.Series(True, index=df_copy.index)
+        
+    # 2. Identify Sale and Cls.Stk columns
+    sale_col = next((c for c in ["SALE", "NET SALE", "NET SALES", "SALES"] if c in df_copy.columns), None)
+    cls_col = next((c for c in ["CLS.STK", "CLS STK", "CLS. STK", "CLOSING", "CLOSING STOCK", "CLS STK."] if c in df_copy.columns), None)
+    
+    sale_val = pd.to_numeric(df_copy[sale_col], errors="coerce").fillna(0) if sale_col else pd.Series(0.0, index=df_copy.index)
+    cls_val = pd.to_numeric(df_copy[cls_col], errors="coerce").fillna(0) if cls_col else pd.Series(0.0, index=df_copy.index)
+    
+    has_value = (sale_val != 0) | (cls_val != 0)
+    
+    # Filter
+    unmapped = df_copy[no_gc & has_value].copy()
+    
+    # Drop helper column _BRANCH if present
+    if "_BRANCH" in unmapped.columns:
+        unmapped = unmapped.drop(columns=["_BRANCH"])
+        
+    return unmapped
+
+
+def _build_pivot(combined_df, month1_name, month2_name):
     """
     Pivot: strictly uses the requested columns:
-    gold code, Company, Item, Pack, Mar, Adj., Sale, SP, SPur Ret, Pur Ret, SS, Apr, Op., TRR, Pur., TRI, SRet, Cls.Stk
+    gold code, Company, Item, Pack, [Month1], [Month2], Adj., Sale, SP, SPur Ret, Pur Ret, SS, Op., TRR, Pur., TRI, SRet, Cls.Stk
     """
     combined_df = combined_df.copy()
     combined_df.columns = combined_df.columns.str.strip().str.upper()
@@ -123,14 +162,14 @@ def _build_pivot(combined_df, value_col):
         "Company": ["COMPANY", "COMPCODE", "COMP"],
         "Item": ["ITEM", "ITEM NAME", "ITEMNAME"],
         "Pack": ["PACK", "PPACK", "PACKSIZE", "PACK SIZE"],
-        "Mar": ["MAR", "MARCH"],
+        month1_name: [month1_name.upper()],
+        month2_name: [month2_name.upper()],
         "Adj.": ["ADJ.", "ADJ", "ADJUSTMENT"],
         "Sale": ["SALE", "NET SALE", "NET SALES", "SALES"],
         "SP": ["SP"],
         "SPur Ret": ["SPUR RET", "SPUR.RET", "SPUR. RET", "SPUR RET."],
         "Pur Ret": ["PUR RET", "PUR.RET", "PUR. RET", "PUR RET.", "PURCHASE RETURN", "PURCHASE RETURNS"],
         "SS": ["SS"],
-        "Apr": ["APR", "APRIL"],
         "Op.": ["OP.", "OP", "OPENING", "OPENING STOCK", "OP.STK", "OP STK"],
         "TRR": ["TRR"],
         "Pur.": ["PUR.", "PUR", "PURCHASE", "PURCHASES"],
@@ -155,7 +194,7 @@ def _build_pivot(combined_df, value_col):
             actual_cols[target] = col_upper
 
     # Ensure value columns exist (create with 0.0 if missing, else convert to numeric)
-    value_targets = ["Mar", "Adj.", "Sale", "SP", "SPur Ret", "Pur Ret", "SS", "Apr", "Op.", "TRR", "Pur.", "TRI", "SRet", "Cls.Stk"]
+    value_targets = [month1_name, month2_name, "Adj.", "Sale", "SP", "SPur Ret", "Pur Ret", "SS", "Op.", "TRR", "Pur.", "TRI", "SRet", "Cls.Stk"]
     for target in value_targets:
         actual_name = actual_cols.get(target)
         if actual_name:
@@ -204,7 +243,7 @@ def _build_pivot(combined_df, value_col):
 # ─────────────────────────────────────────────
 # Excel export
 # ─────────────────────────────────────────────
-def _export_to_excel(combined_df, pivot_df, month_cols):
+def _export_to_excel(combined_df, pivot_df, month_cols, unmapped_alc_df, unmapped_up_df):
     wb = Workbook()
 
     orange_fill  = PatternFill("solid", fgColor="F4B084")
@@ -234,9 +273,10 @@ def _export_to_excel(combined_df, pivot_df, month_cols):
     def write_df_to_sheet(ws, df, fill, title=None):
         start_row = 1
         if title:
+            end_col = len(df.columns) if len(df.columns) > 0 else 1
             ws.merge_cells(
                 start_row=1, start_column=1,
-                end_row=1, end_column=len(df.columns)
+                end_row=1, end_column=end_col
             )
             title_cell = ws.cell(row=1, column=1, value=title)
             title_cell.fill = PatternFill("solid", fgColor="1F3864")
@@ -244,6 +284,11 @@ def _export_to_excel(combined_df, pivot_df, month_cols):
             title_cell.alignment = center_align
             ws.row_dimensions[1].height = 20
             start_row = 2
+
+        if df.empty:
+            cell = ws.cell(row=start_row, column=1, value="No records found.")
+            cell.font = Font(italic=True, name="Calibri", size=10)
+            return
 
         # Header
         for ci, col in enumerate(df.columns, 1):
@@ -281,6 +326,14 @@ def _export_to_excel(combined_df, pivot_df, month_cols):
 
     ws2 = wb.create_sheet("Combined Data")
     write_df_to_sheet(ws2, export_combined, orange_fill, title="Combined Data")
+
+    # Sheet 3: Unmapped ALC
+    ws3 = wb.create_sheet("Unmapped ALC")
+    write_df_to_sheet(ws3, unmapped_alc_df, orange_fill, title="Unmapped ALC Products (No Gold Code)")
+
+    # Sheet 4: Unmapped UP
+    ws4 = wb.create_sheet("Unmapped UP")
+    write_df_to_sheet(ws4, unmapped_up_df, orange_fill, title="Unmapped UP Products (No Gold Code)")
 
     buf = BytesIO()
     wb.save(buf)
@@ -390,6 +443,14 @@ def render_sun_statement():
                     df_b2_main   = _read_file(b2_main)
                     df_b2_master = _read_file(b2_master)
 
+                    # Dynamically read month names from Column F (index 5) and Column G (index 6) of Branch 1 main file
+                    if len(df_b1_main.columns) > 6:
+                        month1_name = str(df_b1_main.columns[5]).strip()
+                        month2_name = str(df_b1_main.columns[6]).strip()
+                    else:
+                        month1_name = "Apr"
+                        month2_name = "Mar"
+
                     st.markdown("---")
                     st.markdown("#### Branch 1 Processing")
                     df_b1 = _process_branch(df_b1_main, df_b1_master, b1_main_code, b1_master_code)
@@ -399,17 +460,23 @@ def render_sun_statement():
                     df_b2 = _process_branch(df_b2_main, df_b2_master, b2_main_code, b2_master_code)
                     df_b2["_BRANCH"] = "Branch 2"
 
+                    # Get unmapped products with non-zero Sale or Closing Stock
+                    unmapped_alc = _get_unmapped_products(df_b1)
+                    unmapped_up  = _get_unmapped_products(df_b2)
+
                     # Combine: Branch 1 on top, Branch 2 below
                     combined = pd.concat([df_b1, df_b2], ignore_index=True)
 
-                    # Build pivot
-                    pivot_df, found_months = _build_pivot(combined, value_col_input)
+                    # Build pivot using the dynamic month columns
+                    pivot_df, found_months = _build_pivot(combined, month1_name, month2_name)
 
                     # Cache in session
                     st.session_state["sun_stmt_result"] = {
-                        "combined": combined,
-                        "pivot":    pivot_df,
-                        "months":   found_months,
+                        "combined":     combined,
+                        "pivot":        pivot_df,
+                        "months":       found_months,
+                        "unmapped_alc": unmapped_alc,
+                        "unmapped_up":  unmapped_up,
                     }
 
                     st.success("✅ Processing complete! View results in the **Results & Download** tab.")
@@ -456,6 +523,26 @@ def render_sun_statement():
 
             st.markdown("---")
 
+            # ── Unmapped Products Preview ──
+            unmapped_alc = res.get("unmapped_alc", pd.DataFrame())
+            unmapped_up  = res.get("unmapped_up", pd.DataFrame())
+            
+            col_u1, col_u2 = st.columns(2)
+            with col_u1:
+                with st.expander(f"⚠️ View Unmapped ALC Products ({len(unmapped_alc)} rows)", expanded=False):
+                    if not unmapped_alc.empty:
+                        st.dataframe(unmapped_alc, use_container_width=True, height=250)
+                    else:
+                        st.success("No unmapped ALC products with Sale/Closing.")
+            with col_u2:
+                with st.expander(f"⚠️ View Unmapped UP Products ({len(unmapped_up)} rows)", expanded=False):
+                    if not unmapped_up.empty:
+                        st.dataframe(unmapped_up, use_container_width=True, height=250)
+                    else:
+                        st.success("No unmapped UP products with Sale/Closing.")
+
+            st.markdown("---")
+
             # ── Gold Code unmapped summary ──
             unmapped = pivot_df[pivot_df["gold code"].astype(str).isin(["nan", "None", "", "NaN"])]
             if not unmapped.empty:
@@ -466,7 +553,10 @@ def render_sun_statement():
 
             # ── Download ──
             st.subheader("📥 Download Results")
-            excel_bytes = _export_to_excel(combined, pivot_df, months)
+            excel_bytes = _export_to_excel(
+                combined, pivot_df, months,
+                unmapped_alc, unmapped_up
+            )
 
             st.download_button(
                 label="📥 Download Sun Statement Excel",
