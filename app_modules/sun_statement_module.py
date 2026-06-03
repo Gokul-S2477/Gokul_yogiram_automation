@@ -105,43 +105,70 @@ VALUE_COLS_PRIORITY = [
 
 def _build_pivot(combined_df, value_col):
     """
-    Pivot: rows = GOLD CODE + reference columns, columns = months found in combined_df.
-    Values are summed across all branches for each GOLD CODE.
-    Reference columns (Item Name, Company, Pack size, etc.) are prioritized from Branch 1.
+    Pivot: strictly uses the requested columns:
+    gold code, Company, Item, Pack, Mar, Adj., Sale, SP, SPur Ret, Pur Ret, SS, Apr, Op., TRR, Pur., TRI, SRet, Cls.Stk
     """
     combined_df = combined_df.copy()
     combined_df.columns = combined_df.columns.str.strip().str.upper()
 
-    # Find which month columns actually exist
-    found_months = [m for m in MONTH_COLS if m in combined_df.columns]
+    def find_col(df_cols, candidates):
+        for c in candidates:
+            if c in df_cols:
+                return c
+        return None
 
-    if not found_months:
-        raise ValueError(
-            "No month columns (APR, MAY, … MAR) found in the data. "
-            f"Available columns: {list(combined_df.columns)}"
-        )
+    # Mappings from requested names to potential column headers in the files
+    col_mappings = {
+        "gold code": ["GOLD CODE"],
+        "Company": ["COMPANY", "COMPCODE", "COMP"],
+        "Item": ["ITEM", "ITEM NAME", "ITEMNAME"],
+        "Pack": ["PACK", "PPACK", "PACKSIZE", "PACK SIZE"],
+        "Mar": ["MAR", "MARCH"],
+        "Adj.": ["ADJ.", "ADJ", "ADJUSTMENT"],
+        "Sale": ["SALE", "NET SALE", "NET SALES", "SALES"],
+        "SP": ["SP"],
+        "SPur Ret": ["SPUR RET", "SPUR.RET", "SPUR. RET", "SPUR RET."],
+        "Pur Ret": ["PUR RET", "PUR.RET", "PUR. RET", "PUR RET.", "PURCHASE RETURN", "PURCHASE RETURNS"],
+        "SS": ["SS"],
+        "Apr": ["APR", "APRIL"],
+        "Op.": ["OP.", "OP", "OPENING", "OPENING STOCK", "OP.STK", "OP STK"],
+        "TRR": ["TRR"],
+        "Pur.": ["PUR.", "PUR", "PURCHASE", "PURCHASES"],
+        "TRI": ["TRI"],
+        "SRet": ["SRET", "SRET.", "SALE RETURN", "SALES RETURN", "SALES RETURNS"],
+        "Cls.Stk": ["CLS.STK", "CLS STK", "CLS. STK", "CLOSING", "CLOSING STOCK", "CLS STK."]
+    }
 
-    # Which value column to pivot on?
-    if value_col and value_col.upper() in combined_df.columns:
-        val_col = value_col.upper()
-    else:
-        # Auto-detect
-        val_col = next(
-            (c for c in VALUE_COLS_PRIORITY if c in combined_df.columns), None
-        )
+    actual_cols = {}
+    for target_name, candidates in col_mappings.items():
+        match = find_col(combined_df.columns, candidates)
+        if match:
+            actual_cols[target_name] = match
 
-    # Identify potential reference/dimension columns to include in the pivot
-    potential_ref_cols = [
-        "ITEM", "ITEM NAME", "ITEMNAME", 
-        "COMPANY", "COMPCODE", 
-        "PACK", "PPACK", "PACKSIZE", "PACK SIZE"
-    ]
-    ref_cols = []
-    for c in potential_ref_cols:
-        if c in combined_df.columns:
-            ref_cols.append(c)
+    # Ensure reference columns exist (create if missing)
+    ref_targets = ["gold code", "Company", "Item", "Pack"]
+    for target in ref_targets:
+        actual_name = actual_cols.get(target)
+        if not actual_name:
+            col_upper = target.upper()
+            combined_df[col_upper] = ""
+            actual_cols[target] = col_upper
 
-    # Extract unique reference info for each GOLD CODE, prioritizing Branch 1
+    # Ensure value columns exist (create with 0.0 if missing, else convert to numeric)
+    value_targets = ["Mar", "Adj.", "Sale", "SP", "SPur Ret", "Pur Ret", "SS", "Apr", "Op.", "TRR", "Pur.", "TRI", "SRet", "Cls.Stk"]
+    for target in value_targets:
+        actual_name = actual_cols.get(target)
+        if actual_name:
+            combined_df[actual_name] = pd.to_numeric(combined_df[actual_name], errors="coerce").fillna(0)
+        else:
+            col_upper = target.upper()
+            combined_df[col_upper] = 0.0
+            actual_cols[target] = col_upper
+
+    # Extract unique reference info prioritizing Branch 1
+    actual_gold_code = actual_cols["gold code"]
+    actual_ref_cols = [actual_cols["Company"], actual_cols["Item"], actual_cols["Pack"]]
+
     if "_BRANCH" in combined_df.columns:
         b1_mask = combined_df["_BRANCH"].astype(str).str.strip().str.upper() == "BRANCH 1"
         b1_rows = combined_df[b1_mask]
@@ -150,26 +177,28 @@ def _build_pivot(combined_df, value_col):
         b1_rows = combined_df
         b2_rows = pd.DataFrame(columns=combined_df.columns)
 
-    ref_b1 = b1_rows[["GOLD CODE"] + ref_cols].drop_duplicates(subset=["GOLD CODE"])
-    ref_b2 = b2_rows[["GOLD CODE"] + ref_cols].drop_duplicates(subset=["GOLD CODE"])
+    ref_b1 = b1_rows[[actual_gold_code] + actual_ref_cols].drop_duplicates(subset=[actual_gold_code])
+    ref_b2 = b2_rows[[actual_gold_code] + actual_ref_cols].drop_duplicates(subset=[actual_gold_code])
     
-    # Union the reference frames, keeping Branch 1 first so its duplicates are dropped
-    ref_df = pd.concat([ref_b1, ref_b2], ignore_index=True).drop_duplicates(subset=["GOLD CODE"], keep="first")
+    # Union reference details, keeping Branch 1 first
+    ref_df = pd.concat([ref_b1, ref_b2], ignore_index=True).drop_duplicates(subset=[actual_gold_code], keep="first")
 
-    # Convert month columns to numeric
-    for m in found_months:
-        combined_df[m] = pd.to_numeric(combined_df[m], errors="coerce").fillna(0)
-
-    # Group strictly by GOLD CODE and sum
-    pivot_vals = combined_df.groupby("GOLD CODE", as_index=False)[found_months].sum()
+    # Group strictly by GOLD CODE and sum values
+    actual_val_cols = [actual_cols[v] for v in value_targets]
+    pivot_vals = combined_df.groupby(actual_gold_code, as_index=False)[actual_val_cols].sum()
 
     # Merge reference columns back onto the summed monthly values
-    pivot = pd.merge(ref_df, pivot_vals, on="GOLD CODE", how="right")
+    pivot = pd.merge(ref_df, pivot_vals, on=actual_gold_code, how="right")
 
-    # Add TOTAL column
-    pivot["TOTAL"] = pivot[found_months].sum(axis=1)
+    # Rename columns to their exact requested casing
+    rename_dict = {actual: target for target, actual in actual_cols.items()}
+    pivot = pivot.rename(columns=rename_dict)
 
-    return pivot, found_months
+    # Order columns exactly as requested by the user
+    target_order = ["gold code", "Company", "Item", "Pack"] + value_targets
+    pivot = pivot[target_order]
+
+    return pivot, value_targets
 
 
 # ─────────────────────────────────────────────
@@ -399,7 +428,7 @@ def render_sun_statement():
 
             # ── Pivot Preview ──
             st.subheader("📊 Gold Code Pivot")
-            st.caption(f"Months found: {', '.join(months)}")
+            st.caption(f"Columns: {', '.join(pivot_df.columns)}")
 
             # Style pivot: highlight TOTAL column
             def highlight_total(df):
@@ -428,7 +457,7 @@ def render_sun_statement():
             st.markdown("---")
 
             # ── Gold Code unmapped summary ──
-            unmapped = pivot_df[pivot_df["GOLD CODE"].isin(["nan", "None", "", "NaN"])]
+            unmapped = pivot_df[pivot_df["gold code"].astype(str).isin(["nan", "None", "", "NaN"])]
             if not unmapped.empty:
                 st.warning(
                     f"⚠️ **{len(unmapped)} rows** could not be matched to a Gold Code. "
@@ -448,10 +477,10 @@ def render_sun_statement():
             )
 
             # ── Per-company breakdown ──
-            if "COMPANY" in pivot_df.columns or "COMPCODE" in pivot_df.columns:
+            if "Company" in pivot_df.columns:
                 st.markdown("---")
                 st.subheader("🏢 Company-wise Totals")
-                comp_col = "COMPANY" if "COMPANY" in pivot_df.columns else "COMPCODE"
+                comp_col = "Company"
                 comp_pivot = pivot_df.groupby(comp_col)[months].sum()
                 comp_pivot["TOTAL"] = comp_pivot.sum(axis=1)
                 comp_pivot = comp_pivot.sort_values("TOTAL", ascending=False)
