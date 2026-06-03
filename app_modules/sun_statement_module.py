@@ -67,12 +67,13 @@ def _process_branch(df_main, df_master, main_code_col, master_code_col):
             f"Available: {list(df_master.columns)}"
         )
 
-    # Build lookup: master_code → gold_code
-    lookup = df_master.set_index(master_code_col)[gold_col_in_master].astype(str)
-
-    # Cast join keys to str for safety
+    # Cast join keys to str and strip whitespace for safety before lookup/deduplication
     df_main[main_code_col] = df_main[main_code_col].astype(str).str.strip()
-    lookup.index = lookup.index.astype(str).str.strip()
+    df_master[master_code_col] = df_master[master_code_col].astype(str).str.strip()
+
+    # Build lookup: master_code → gold_code (deduplicate to avoid InvalidIndexError)
+    df_master_dedup = df_master.drop_duplicates(subset=[master_code_col], keep='first')
+    lookup = df_master_dedup.set_index(master_code_col)[gold_col_in_master].astype(str)
 
     df_main["GOLD CODE"] = df_main[main_code_col].map(lookup)
 
