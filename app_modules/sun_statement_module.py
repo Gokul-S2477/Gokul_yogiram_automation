@@ -105,7 +105,9 @@ VALUE_COLS_PRIORITY = [
 
 def _build_pivot(combined_df, value_col):
     """
-    Pivot: rows = GOLD CODE + ITEM + COMPANY, columns = months found in combined_df.
+    Pivot: rows = GOLD CODE + reference columns, columns = months found in combined_df.
+    Values are summed across all branches for each GOLD CODE.
+    Reference columns (Item Name, Company, Pack size, etc.) are prioritized from Branch 1.
     """
     combined_df = combined_df.copy()
     combined_df.columns = combined_df.columns.str.strip().str.upper()
@@ -127,34 +129,42 @@ def _build_pivot(combined_df, value_col):
         val_col = next(
             (c for c in VALUE_COLS_PRIORITY if c in combined_df.columns), None
         )
-        if not val_col:
-            raise ValueError(
-                "Cannot find a suitable value column to pivot. "
-                "Please check your data."
-            )
 
-    # Identify dimension columns
-    dim_cols = ["GOLD CODE"]
-    for c in ["ITEM", "ITEM NAME", "ITEMNAME", "COMPANY", "COMPCODE"]:
+    # Identify potential reference/dimension columns to include in the pivot
+    potential_ref_cols = [
+        "ITEM", "ITEM NAME", "ITEMNAME", 
+        "COMPANY", "COMPCODE", 
+        "PACK", "PPACK", "PACKSIZE", "PACK SIZE"
+    ]
+    ref_cols = []
+    for c in potential_ref_cols:
         if c in combined_df.columns:
-            dim_cols.append(c)
+            ref_cols.append(c)
 
-    # Keep only dim + month cols (or value col if not months)
-    # In this file the monthly data IS in APR, MAY, etc. columns
-    # (each row may already have month values spread across columns)
-    # → melt → pivot
+    # Extract unique reference info for each GOLD CODE, prioritizing Branch 1
+    if "_BRANCH" in combined_df.columns:
+        b1_mask = combined_df["_BRANCH"].astype(str).str.strip().str.upper() == "BRANCH 1"
+        b1_rows = combined_df[b1_mask]
+        b2_rows = combined_df[~b1_mask]
+    else:
+        b1_rows = combined_df
+        b2_rows = pd.DataFrame(columns=combined_df.columns)
 
-    keep_cols = dim_cols + found_months
-    df_sub = combined_df[[c for c in keep_cols if c in combined_df.columns]].copy()
+    ref_b1 = b1_rows[["GOLD CODE"] + ref_cols].drop_duplicates(subset=["GOLD CODE"])
+    ref_b2 = b2_rows[["GOLD CODE"] + ref_cols].drop_duplicates(subset=["GOLD CODE"])
+    
+    # Union the reference frames, keeping Branch 1 first so its duplicates are dropped
+    ref_df = pd.concat([ref_b1, ref_b2], ignore_index=True).drop_duplicates(subset=["GOLD CODE"], keep="first")
 
-    # Convert month cols to numeric
+    # Convert month columns to numeric
     for m in found_months:
-        if m in df_sub.columns:
-            df_sub[m] = pd.to_numeric(df_sub[m], errors="coerce").fillna(0)
+        combined_df[m] = pd.to_numeric(combined_df[m], errors="coerce").fillna(0)
 
-    # Group by GOLD CODE (sum months)
-    grp_cols = [c for c in dim_cols if c in df_sub.columns]
-    pivot = df_sub.groupby(grp_cols, as_index=False)[found_months].sum()
+    # Group strictly by GOLD CODE and sum
+    pivot_vals = combined_df.groupby("GOLD CODE", as_index=False)[found_months].sum()
+
+    # Merge reference columns back onto the summed monthly values
+    pivot = pd.merge(ref_df, pivot_vals, on="GOLD CODE", how="right")
 
     # Add TOTAL column
     pivot["TOTAL"] = pivot[found_months].sum(axis=1)
@@ -236,8 +246,12 @@ def _export_to_excel(combined_df, pivot_df, month_cols):
     write_df_to_sheet(ws1, pivot_df, green_fill, title="Sun Statement – Gold Code Pivot")
 
     # Sheet 2: Combined Raw
+    export_combined = combined_df.copy()
+    if "_BRANCH" in export_combined.columns:
+        export_combined = export_combined.drop(columns=["_BRANCH"])
+
     ws2 = wb.create_sheet("Combined Data")
-    write_df_to_sheet(ws2, combined_df, orange_fill, title="Combined Branch Data")
+    write_df_to_sheet(ws2, export_combined, orange_fill, title="Combined Data")
 
     buf = BytesIO()
     wb.save(buf)
@@ -405,13 +419,11 @@ def render_sun_statement():
             st.markdown("---")
 
             # ── Combined Raw Preview ──
-            with st.expander("🔍 View Combined Raw Data (both branches)", expanded=False):
-                b1_count = (combined["_BRANCH"] == "Branch 1").sum()
-                b2_count = (combined["_BRANCH"] == "Branch 2").sum()
-                col_a, col_b = st.columns(2)
-                col_a.metric("Branch 1 Rows", b1_count)
-                col_b.metric("Branch 2 Rows", b2_count)
-                st.dataframe(combined, use_container_width=True, height=350)
+            with st.expander("🔍 View Combined Raw Data", expanded=False):
+                display_combined = combined.copy()
+                if "_BRANCH" in display_combined.columns:
+                    display_combined = display_combined.drop(columns=["_BRANCH"])
+                st.dataframe(display_combined, use_container_width=True, height=350)
 
             st.markdown("---")
 
