@@ -34,6 +34,12 @@ except ImportError as e:
     st.error(f"Error loading branch transfer module: {e}")
     render_branch_transfer = None
 
+try:
+    from app_modules.sun_statement_module import render_sun_statement
+except ImportError as e:
+    st.error(f"Error loading sun statement module: {e}")
+    render_sun_statement = None
+
 # =========================================================
 # PHARMA FORECAST STANDALONE ENGINE (MODULAR REDIRECT)
 # =========================================================
@@ -771,6 +777,8 @@ def go_pharma_dashboard():
     st.session_state.page = "pharma_dashboard"
 def go_branch_transfer():
     st.session_state.page = "branch_transfer"
+def go_sun_statement():
+    st.session_state.page = "sun_statement"
 
 # ================== HOME PAGE ==================
 if st.session_state.page == "home":
@@ -847,6 +855,11 @@ if st.session_state.page == "home":
     with a4:
         if st.button("🚚  Courier Map",     key="btn_cm", width='stretch'):     go_courier_mapper()
         if st.button("🔄  Branch Transfer", key="btn_bt", width='stretch'):     go_branch_transfer()
+
+    # Sun Statement row
+    sun_row1, sun_row2, sun_row3, sun_row4 = st.columns(4, gap="medium")
+    with sun_row1:
+        if st.button("☀️  Sun Statement",   key="btn_sun", width='stretch'):    go_sun_statement()
 
     if username == "admin":
         st.markdown("""
@@ -2677,5 +2690,12 @@ elif st.session_state.page == "admin_log":
         st.info("No login records yet.")
 
 
+
+# ------------------ SUN STATEMENT MODULE ------------------
+elif st.session_state.page == "sun_statement":
+    if render_sun_statement:
+        render_sun_statement()
+    else:
+        st.error("Sun Statement Module is missing or failed to load.")
 
 # END OF FILE   
