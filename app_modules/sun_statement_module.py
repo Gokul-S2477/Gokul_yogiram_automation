@@ -272,19 +272,47 @@ def _export_to_excel(combined_df, pivot_df, month_cols, unmapped_alc_df, unmappe
 
     def write_df_to_sheet(ws, df, fill, title=None):
         start_row = 1
+        end_col = len(df.columns) if len(df.columns) > 0 else 1
+        
+        # Row 1: YOGI RAM PHARMA
+        ws.merge_cells(
+            start_row=1, start_column=1,
+            end_row=1, end_column=end_col
+        )
+        r1_cell = ws.cell(row=1, column=1, value="YOGI RAM PHARMA")
+        r1_cell.font = Font(bold=True, name="Calibri", size=16, color="1F3864")
+        r1_cell.alignment = center_align
+        ws.row_dimensions[1].height = 25
+        
+        # Row 2: Company details
+        ws.merge_cells(
+            start_row=2, start_column=1,
+            end_row=2, end_column=end_col
+        )
+        details = (
+            "YOGIRAM DISTRIBUTORS PVT. LTD., YOGIVASAM, NO-8, A.L.C. CAMPUS, CUDDALORE - 607001\n"
+            "CIN : U51900TN2018PTC123306  GST No. : 33AABCY0133A1Z6  DL No. : TRS 1625-20B, TRS 1465-21B  Tel No. : 04142-230592, 9789492339, 9791277677"
+        )
+        r2_cell = ws.cell(row=2, column=1, value=details)
+        r2_cell.font = Font(name="Calibri", size=9, color="000000")
+        r2_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        ws.row_dimensions[2].height = 30
+        
+        # Row 3: Sheet-specific title
         if title:
-            end_col = len(df.columns) if len(df.columns) > 0 else 1
             ws.merge_cells(
-                start_row=1, start_column=1,
-                end_row=1, end_column=end_col
+                start_row=3, start_column=1,
+                end_row=3, end_column=end_col
             )
-            title_cell = ws.cell(row=1, column=1, value=title)
+            title_cell = ws.cell(row=3, column=1, value=title)
             title_cell.fill = PatternFill("solid", fgColor="1F3864")
-            title_cell.font = Font(bold=True, name="Calibri", size=12, color="FFFFFF")
+            title_cell.font = Font(bold=True, name="Calibri", size=11, color="FFFFFF")
             title_cell.alignment = center_align
-            ws.row_dimensions[1].height = 20
-            start_row = 2
-
+            ws.row_dimensions[3].height = 20
+            start_row = 4
+        else:
+            start_row = 3
+            
         if df.empty:
             cell = ws.cell(row=start_row, column=1, value="No records found.")
             cell.font = Font(italic=True, name="Calibri", size=10)
